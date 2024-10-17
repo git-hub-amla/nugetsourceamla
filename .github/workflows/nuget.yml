@@ -3,33 +3,54 @@ name: Build and Package NuGet
 on:
   workflow_dispatch:  # Enables manual triggering with inputs
     inputs:
-      # General version input
-      version:
-        description: 'Version for selected libraries (optional, auto-increment if empty)'
+      # General version input description
+      general_version:
+        description: 'Version for libraries (optional, auto-increment if empty)'
         required: false
         default: ''
         type: string
 
-      # Library 1
+      # Library 1 build checkbox
       build_library1:
         description: 'Build Library 1?'
         required: true
         default: false  # False by default
         type: boolean
 
-      # Library 2
+      # Library 1 version input
+      version_library1:
+        description: 'Version for Library 1 (optional, auto-increment if empty)'
+        required: false
+        default: ''
+        type: string
+
+      # Library 2 build checkbox
       build_library2:
         description: 'Build Library 2?'
         required: true
         default: false  # False by default
         type: boolean
 
-      # Library 3
+      # Library 2 version input
+      version_library2:
+        description: 'Version for Library 2 (optional, auto-increment if empty)'
+        required: false
+        default: ''
+        type: string
+
+      # Library 3 build checkbox
       build_library3:
         description: 'Build Library 3?'
         required: true
         default: false  # False by default
         type: boolean
+
+      # Library 3 version input
+      version_library3:
+        description: 'Version for Library 3 (optional, auto-increment if empty)'
+        required: false
+        default: ''
+        type: string
 
 jobs:
   build:
@@ -67,46 +88,46 @@ jobs:
         version3=$(jq -r '.Library3.version' version_repo/version.json)
 
         # Initialize new version variables
-        new_version1=""
-        new_version2=""
-        new_version3=""
+        new_version1="${{ github.event.inputs.version_library1 }}"
+        new_version2="${{ github.event.inputs.version_library2 }}"
+        new_version3="${{ github.event.inputs.version_library3 }}"
 
-        # Determine new version for Library1
+        # Increment version if not provided for Library1
         if [ "${{ github.event.inputs.build_library1 }}" == 'true' ]; then
-          if [ -z "${{ github.event.inputs.version }}" ]; then
-            # Auto-increment version
-            IFS='.' read -ra ADDR <<< "$version1"
-            patch=$((ADDR[2] + 1))
-            new_version1="${ADDR[0]}.${ADDR[1]}.$patch"
-          else
-            # Use specified version
-            new_version1="${{ github.event.inputs.version }}"
+          if [ -z "${{ github.event.inputs.version_library1 }}" ]; then
+            if [ -z "$version1" ]; then
+              new_version1="1.0.0"
+            else
+              IFS='.' read -ra ADDR <<< "$version1"
+              patch=$((ADDR[2] + 1))
+              new_version1="${ADDR[0]}.${ADDR[1]}.$patch"
+            fi
           fi
         fi
 
-        # Determine new version for Library2
+        # Increment version if not provided for Library2
         if [ "${{ github.event.inputs.build_library2 }}" == 'true' ]; then
-          if [ -z "${{ github.event.inputs.version }}" ]; then
-            # Auto-increment version
-            IFS='.' read -ra ADDR <<< "$version2"
-            patch=$((ADDR[2] + 1))
-            new_version2="${ADDR[0]}.${ADDR[1]}.$patch"
-          else
-            # Use specified version
-            new_version2="${{ github.event.inputs.version }}"
+          if [ -z "${{ github.event.inputs.version_library2 }}" ]; then
+            if [ -z "$version2" ]; then
+              new_version2="1.0.0"
+            else
+              IFS='.' read -ra ADDR <<< "$version2"
+              patch=$((ADDR[2] + 1))
+              new_version2="${ADDR[0]}.${ADDR[1]}.$patch"
+            fi
           fi
         fi
 
-        # Determine new version for Library3
+        # Increment version if not provided for Library3
         if [ "${{ github.event.inputs.build_library3 }}" == 'true' ]; then
-          if [ -z "${{ github.event.inputs.version }}" ]; then
-            # Auto-increment version
-            IFS='.' read -ra ADDR <<< "$version3"
-            patch=$((ADDR[2] + 1))
-            new_version3="${ADDR[0]}.${ADDR[1]}.$patch"
-          else
-            # Use specified version
-            new_version3="${{ github.event.inputs.version }}"
+          if [ -z "${{ github.event.inputs.version_library3 }}" ]; then
+            if [ -z "$version3" ]; then
+              new_version3="1.0.0"
+            else
+              IFS='.' read -ra ADDR <<< "$version3"
+              patch=$((ADDR[2] + 1))
+              new_version3="${ADDR[0]}.${ADDR[1]}.$patch"
+            fi
           fi
         fi
 
@@ -184,8 +205,10 @@ jobs:
           jq ".Library3.version = \"${{ steps.determine_versions.outputs.new_version3 }}\" | .Library3.history += [{\"version\": \"${{ steps.determine_versions.outputs.new_version3 }}\", \"date\": \"$timestamp\"}]" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
         fi
 
-        # Limit history to last 5 entries for each library
-        jq '(.Library1.history | reverse | .[0:5]) as $h1 | (.Library1.history = $h1 | .Library2.history | reverse | .[0:5]) as $h2 | (.Library2.history = $h2 | .Library3.history | reverse | .[0:5]) as $h3 | (.Library3.history = $h3)' version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
+        # Keep only the last 5 history entries for each library
+        jq '(.Library1.history | length > 5) as $len | if $len > 5 then .Library1.history = .Library1.history[$len - 5:] else .Library1.history end |
+            (.Library2.history | length > 5) as $len | if $len > 5 then .Library2.history = .Library2.history[$len - 5:] else .Library2.history end |
+            (.Library3.history | length > 5) as $len | if $len > 5 then .Library3.history = .Library3.history[$len - 5:] else .Library3.history end' version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
 
         # Commit and push the updated version.json file
         cd version_repo
