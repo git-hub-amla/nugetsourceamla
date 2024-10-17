@@ -13,7 +13,7 @@ jobs:
     - name: Checkout the project repository
       uses: actions/checkout@v2
       with:
-        repository: yourusername/projectamla  # Replace with the repo name
+        repository: git-hub-amla/projectamla  # Replace with the repo name
         token: ${{ secrets.ACCESS_TOKEN }}
         path: project  # This will create a folder named "project"
 
