@@ -3,6 +3,13 @@ name: Build and Package NuGet
 on:
   workflow_dispatch:  # Enables manual triggering with inputs
     inputs:
+      # Branch selection input
+      branch_name:
+        description: 'Branch name (default: dev)'
+        required: false
+        default: 'dev'
+        type: string
+
       # Library 1 build checkbox
       build_library1:
         description: 'Build Library 1?'
@@ -12,7 +19,7 @@ on:
 
       # Library 1 version input
       version_library1:
-        description: 'Version for Library 1'
+        description: 'Version for Library 1 (optional, auto-increment if empty)'
         required: false
         default: ''
         type: string
@@ -26,7 +33,7 @@ on:
 
       # Library 2 version input
       version_library2:
-        description: 'Version for Library 2'
+        description: 'Version for Library 2 (optional, auto-increment if empty)'
         required: false
         default: ''
         type: string
@@ -40,16 +47,9 @@ on:
 
       # Library 3 version input
       version_library3:
-        description: 'Version for Library 3'
+        description: 'Version for Library 3 (optional, auto-increment if empty)'
         required: false
         default: ''
-        type: string
-
-      # Branch name input
-      branch_name:
-        description: 'Branch name'
-        required: true
-        default: 'dev'  # Default branch
         type: string
 
 jobs:
@@ -73,85 +73,71 @@ jobs:
         token: ${{ secrets.ACCESS_TOKEN }}
         path: version_repo
 
-    # Step 3: Change to the version_repo directory
-    - name: Change directory to version_repo
-      run: cd version_repo
-
-    # Step 4: Determine the branch and set the version file
-    - name: Determine version file based on branch
-      id: determine_version_file
-      run: |
-        echo "Branch: ${{ github.event.inputs.branch_name }}"
-        branch=${{ github.event.inputs.branch_name }}
-        if [ "$branch" == "master" ]; then
-          version_file="version_repo/version.master.json"
-        elif [ "$branch" == "dev" ]; then
-          version_file="version_repo/version.dev.json"
-        else
-          echo "Unsupported branch: $branch"
-          exit 1
-        fi
-        
-        # Check if the version file exists, if not create it
-        if [ ! -f "$version_file" ]; then
-          echo '{"Library1": {"version": "1.0.0", "history": []}, "Library2": {"version": "1.0.0", "history": []}, "Library3": {"version": "1.0.0", "history": []}}' > "$version_file"
-        fi
-
-        echo "Version file: $version_file"
-        echo "::set-output name=version_file::$version_file"
-
-    # Step 5: Setup .NET environment
+    # Step 3: Setup .NET environment
     - name: Setup .NET
       uses: actions/setup-dotnet@v2
       with:
         dotnet-version: '7.0'
 
-    # Step 6: Read the current version from version file and handle versioning logic
+    # Step 4: Read the current version from version.json and handle versioning logic
     - name: Read and Determine Versions
       id: determine_versions
       run: |
-        version_file="${{ steps.determine_version_file.outputs.version_file }}"
-        
-        # Read versions from the version file, defaulting to "1.0.0" if not found
-        version1=$(jq -r '.Library1.version // "1.0.0"' "$version_file")
-        version2=$(jq -r '.Library2.version // "1.0.0"' "$version_file")
-        version3=$(jq -r '.Library3.version // "1.0.0"' "$version_file")
+        # Get the branch name from the input
+        branch="${{ github.event.inputs.branch_name }}"
+        version_file="version_repo/version.json"
 
         # Initialize new version variables
         new_version1="${{ github.event.inputs.version_library1 }}"
         new_version2="${{ github.event.inputs.version_library2 }}"
         new_version3="${{ github.event.inputs.version_library3 }}"
 
+        # Check if the version file exists; if not, create it with default structure
+        if [ ! -f "$version_file" ]; then
+          echo '{}' > "$version_file"
+        fi
+
+        # Read current versions from the version file
+        version1=$(jq -r ".\"$branch\".Library1.version" "$version_file")
+        version2=$(jq -r ".\"$branch\".Library2.version" "$version_file")
+        version3=$(jq -r ".\"$branch\".Library3.version" "$version_file")
+
         # Increment version if not provided for Library1
         if [ "${{ github.event.inputs.build_library1 }}" == 'true' ]; then
           if [ -z "${{ github.event.inputs.version_library1 }}" ]; then
-            IFS='.' read -ra ADDR <<< "$version1"
-            patch=$((ADDR[2] + 1))
-            new_version1="${ADDR[0]}.${ADDR[1]}.$patch"
-          else
-            new_version1="${{ github.event.inputs.version_library1 }}"
+            if [ -z "$version1" ]; then
+              new_version1="1.0.0"
+            else
+              IFS='.' read -ra ADDR <<< "$version1"
+              patch=$((ADDR[2] + 1))
+              new_version1="${ADDR[0]}.${ADDR[1]}.$patch"
+            fi
           fi
         fi
 
         # Increment version if not provided for Library2
         if [ "${{ github.event.inputs.build_library2 }}" == 'true' ]; then
           if [ -z "${{ github.event.inputs.version_library2 }}" ]; then
-            IFS='.' read -ra ADDR <<< "$version2"
-            patch=$((ADDR[2] + 1))
-            new_version2="${ADDR[0]}.${ADDR[1]}.$patch"
-          else
-            new_version2="${{ github.event.inputs.version_library2 }}"
+            if [ -z "$version2" ]; then
+              new_version2="1.0.0"
+            else
+              IFS='.' read -ra ADDR <<< "$version2"
+              patch=$((ADDR[2] + 1))
+              new_version2="${ADDR[0]}.${ADDR[1]}.$patch"
+            fi
           fi
         fi
 
         # Increment version if not provided for Library3
         if [ "${{ github.event.inputs.build_library3 }}" == 'true' ]; then
           if [ -z "${{ github.event.inputs.version_library3 }}" ]; then
-            IFS='.' read -ra ADDR <<< "$version3
-            patch=$((ADDR[2] + 1))
-            new_version3="${ADDR[0]}.${ADDR[1]}.$patch"
-          else
-            new_version3="${{ github.event.inputs.version_library3 }}"
+            if [ -z "$version3" ]; then
+              new_version3="1.0.0"
+            else
+              IFS='.' read -ra ADDR <<< "$version3"
+              patch=$((ADDR[2] + 1))
+              new_version3="${ADDR[0]}.${ADDR[1]}.$patch"
+            fi
           fi
         fi
 
@@ -160,77 +146,67 @@ jobs:
         echo "::set-output name=new_version2::$new_version2"
         echo "::set-output name=new_version3::$new_version3"
 
-    # Conditional Step: Restore, build, and pack Library1 if selected
-    - name: Build and Package Library1
-      if: github.event.inputs.build_library1 == 'true'
+    # Step 5: Build and package the libraries based on selections
+    - name: Build and Package Libraries
       run: |
-        # Restore dependencies for Library1
-        dotnet restore project/NugetApplication/Library1/Library1.csproj
-
-        # Build Library1
-        dotnet build project/NugetApplication/Library1/Library1.csproj --configuration Release
-
-        # Pack Library1 with the determined version
-        dotnet pack project/NugetApplication/Library1/Library1.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.determine_versions.outputs.new_version1 }}
-
-    # Conditional Step: Restore, build, and pack Library2 if selected
-    - name: Build and Package Library2
-      if: github.event.inputs.build_library2 == 'true'
-      run: |
-        # Restore dependencies for Library2
-        dotnet restore project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj
-
-        # Build Library2
-        dotnet build project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release
-
-        # Pack Library2 with the determined version
-        dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.determine_versions.outputs.new_version2 }}
-
-    # Conditional Step: Restore, build, and pack Library3 if selected
-    - name: Build and Package Library3
-      if: github.event.inputs.build_library3 == 'true'
-      run: |
-        # Restore dependencies for Library3
-        dotnet restore project/NugetApplication/ClassLibrary3/ClassLibrary3.csproj
-
-        # Build Library3
-        dotnet build project/NugetApplication/ClassLibrary3/ClassLibrary3.csproj --configuration Release
-
-        # Pack Library3 with the determined version
-        dotnet pack project/NugetApplication/ClassLibrary3/ClassLibrary3.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.determine_versions.outputs.new_version3 }}
-
-    # Step 7: Publish the NuGet package to GitHub Packages in 'nugetsourceamla'
-    - name: Publish NuGet Packages
-      run: |
-        dotnet nuget push ./nupkgs/*.nupkg --source "github" --api-key ${{ secrets.GITHUB_TOKEN }}
-
-    # Step 8: Update the version file with new versioning information
-    - name: Update Version File
-      run: |
-        # Get current date and time
-        timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-        # Get the version file from the previous step
-        version_file="${{ steps.determine_version_file.outputs.version_file }}"
-
-        # Update version.json with the new version and history for Library1
+        # Restore, build, and pack Library1 if selected
         if [ "${{ github.event.inputs.build_library1 }}" == 'true' ]; then
-          jq ".Library1.version = \"${{ steps.determine_versions.outputs.new_version1 }}\" | .Library1.history += [{\"version\": \"${{ steps.determine_versions.outputs.new_version1 }}\", \"date\": \"$timestamp\"}]" "$version_file" > tmp.json && mv tmp.json "$version_file"
+          dotnet restore project/NugetApplication/Library1/Library1.csproj
+          dotnet build project/NugetApplication/Library1/Library1.csproj --configuration Release
+          dotnet pack project/NugetApplication/Library1/Library1.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.determine_versions.outputs.new_version1 }}
         fi
 
-        # Update version.json with the new version and history for Library2
+        # Restore, build, and pack Library2 if selected
         if [ "${{ github.event.inputs.build_library2 }}" == 'true' ]; then
-          jq ".Library2.version = \"${{ steps.determine_versions.outputs.new_version2 }}\" | .Library2.history += [{\"version\": \"${{ steps.determine_versions.outputs.new_version2 }}\", \"date\": \"$timestamp\"}]" "$version_file" > tmp.json && mv tmp.json "$version_file"
+          dotnet restore project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj
+          dotnet build project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release
+          dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.determine_versions.outputs.new_version2 }}
         fi
 
-        # Update version.json with the new version and history for Library3
+        # Restore, build, and pack Library3 if selected
         if [ "${{ github.event.inputs.build_library3 }}" == 'true' ]; then
-          jq ".Library3.version = \"${{ steps.determine_versions.outputs.new_version3 }}\" | .Library3.history += [{\"version\": \"${{ steps.determine_versions.outputs.new_version3 }}\", \"date\": \"$timestamp\"}]" "$version_file" > tmp.json && mv tmp.json "$version_file"
+          dotnet restore project/NugetApplication/ClassLibrary3/ClassLibrary3.csproj
+          dotnet build project/NugetApplication/ClassLibrary3/ClassLibrary3.csproj --configuration Release
+          dotnet pack project/NugetApplication/ClassLibrary3/ClassLibrary3.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.determine_versions.outputs.new_version3 }}
         fi
+
+    # Step 6: Publish the NuGet package to GitHub Packages
+    - name: Publish NuGet Package
+      env:
+        GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+      run: |
+        dotnet nuget push ./nupkgs/*.nupkg \
+          --source "https://nuget.pkg.github.com/git-hub-amla/index.json" \
+          --api-key $GITHUB_TOKEN \
+          --skip-duplicate
+
+    # Step 7: Update version.json with the new versions and add to history
+    - name: Update version.json
+      run: |
+        timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        version_file="version_repo/version.json"
+
+        # Update version.json with the new version and history
+        jq --arg new_version1 "${{ steps.determine_versions.outputs.new_version1 }}" \
+           --arg new_version2 "${{ steps.determine_versions.outputs.new_version2 }}" \
+           --arg new_version3 "${{ steps.determine_versions.outputs.new_version3 }}" \
+           --arg timestamp "$timestamp" \
+           ".\"$branch\" |= . // {Library1: {version: \"\", history: []}, Library2: {version: \"\", history: []}, Library3: {version: \"\", history: []}} |
+           .\"$branch\".Library1.version = \$new_version1 |
+           .\"$branch\".Library1.history += [{\"version\": \$new_version1, \"date\": \$timestamp}] |
+           .\"$branch\".Library2.version = \$new_version2 |
+           .\"$branch\".Library2.history += [{\"version\": \$new_version2, \"date\": \$timestamp}] |
+           .\"$branch\".Library3.version = \$new_version3 |
+           .\"$branch\".Library3.history += [{\"version\": \$new_version3, \"date\": \$timestamp}]" "$version_file" > tmp.json && mv tmp.json "$version_file"
+
+        # Keep only the last 5 history entries for each library
+        jq "(.\"$branch\".Library1.history) = (.\"$branch\".Library1.history | .[-5:]) |
+           (.\"$branch\".Library2.history) = (.\"$branch\".Library2.history | .[-5:]) |
+           (.\"$branch\".Library3.history) = (.\"$branch\".Library3.history | .[-5:])" "$version_file" > tmp.json && mv tmp.json "$version_file"
 
         # Commit and push the updated version file to the repository
         git config --global user.email "actions@github.com"
         git config --global user.name "GitHub Action"
         git add "$version_file"
         git commit -m "Update version.json with new versions"
-        git push origin "${{ github.event.inputs.branch_name }}"
+        git push origin "$branch"
