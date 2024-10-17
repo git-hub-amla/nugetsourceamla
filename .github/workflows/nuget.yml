@@ -1,16 +1,23 @@
-{
-  "Library1": {
-    "version": "1.0.3",
-    "history": [
-      {"version": "1.0.2", "date": "2024-10-18T12:34:56Z"},
-      {"version": "1.0.3", "date": "2024-10-18T14:00:00Z"}
-    ]
-  },
-  "Library2": {
-    "version": "1.0.3",
-    "history": [
-      {"version": "1.0.1", "date": "2024-10-18T11:00:00Z"},
-      {"version": "1.0.3", "date": "2024-10-18T14:00:00Z"}
-    ]
-  }
-}
+# Step 7: Update version.json with the new versions and add to history
+- name: Update version.json
+  if: github.event.inputs.build_library1 == 'true' || github.event.inputs.build_library2 == 'true'
+  run: |
+    # Get current date and time
+    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    # Update version.json with the new version and history
+    if [ "${{ github.event.inputs.build_library1 }}" == 'true' ]; then
+      jq ".Library1.version = \"${{ steps.increment_versions.outputs.new_version1 }}\" | .Library1.history += [{\"version\": \"${{ steps.increment_versions.outputs.new_version1 }}\", \"date\": \"$timestamp\"}]" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
+    fi
+
+    if [ "${{ github.event.inputs.build_library2 }}" == 'true' ]; then
+      jq ".Library2.version = \"${{ steps.increment_versions.outputs.new_version2 }}\" | .Library2.history += [{\"version\": \"${{ steps.increment_versions.outputs.new_version2 }}\", \"date\": \"$timestamp\"}]" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
+    fi
+
+    # Commit and push the updated version.json file
+    cd version_repo
+    git config user.name "GitHub Actions"
+    git config user.email "actions@github.com"
+    git add version.json
+    git commit -m "Update version.json after build"
+    git push
