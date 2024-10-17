@@ -36,6 +36,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Automatically provided by GitHub
       run: |
         dotnet nuget push ./nupkgs/*.nupkg \
-          --source "GitHub" \
+          --source "https://nuget.pkg.github.com/git-hub-amla/index.json" \
           --api-key $GITHUB_TOKEN \
           --skip-duplicate
