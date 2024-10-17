@@ -3,29 +3,33 @@ name: Build and Package NuGet
 on:
   push:
     branches:
-      - main  # Adjust if you want a different branch
+      - main  # Adjust as necessary
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
+    - name: Checkout the project repository
       uses: actions/checkout@v2
+      with:
+        repository: yourusername/projectamla  # Replace with the repo name
+        token: ${{ secrets.ACCESS_TOKEN }}
+        path: project  # This will create a folder named "project"
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v2
       with:
-        dotnet-version: '7.0'  # Change this to your target .NET version
+        dotnet-version: '7.0'  # Adjust to your .NET version
 
     - name: Restore dependencies
-      run: dotnet restore NugetApplication/ClassLibrary2/ClassLibrary2.csproj
+      run: dotnet restore project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj
 
     - name: Build the project
-      run: dotnet build NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release
+      run: dotnet build project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release
 
     - name: Pack the library
-      run: dotnet pack NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs
+      run: dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs
 
     - name: Publish NuGet Package
       env:
