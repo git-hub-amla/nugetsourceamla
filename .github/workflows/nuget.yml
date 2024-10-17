@@ -2,66 +2,65 @@ name: Build and Package NuGet
 
 on:
   workflow_dispatch:  # Enables manual triggering with inputs
+    inputs:
+      package_version:
+        description: 'Version of the NuGet package'  # Prompt for the input
+        required: true
+        default: '1.0.0'  # Default version, can be changed when running manually
+      libraries:
+        description: 'Select Libraries to Build and Package'
+        required: true
+        type: choice
+        options:
+          - Library1
+          - Library2
+          - Both
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Checkout the project repository with full history for commits
+    # Step 1: Checkout the project repository
     - name: Checkout the project repository
       uses: actions/checkout@v2
       with:
         repository: git-hub-amla/projectamla  # Replace with your repo name if different
         token: ${{ secrets.ACCESS_TOKEN }}     # Using a secret for secure authentication
-        fetch-depth: 0                        # Fetch full history for committing
+        path: project                         # Clone the repo into a folder named "project"
 
-    # Step 2: Read and increment version
-    - name: Read and increment version
-      id: version
-      run: |
-        # Ensure the version.json file exists, create it with 1.0.0 if not found
-        if [ ! -f project/version.json ]; then
-          echo '{"version": "1.0.0"}' > project/version.json
-        fi
-
-        # Read the current version from version.json
-        current_version=$(jq -r '.version' project/version.json)
-
-        # Split the version into major, minor, patch
-        IFS='.' read -ra ADDR <<< "$current_version"
-        major=${ADDR[0]}
-        minor=${ADDR[1]}
-        patch=${ADDR[2]}
-
-        # Increment the patch number
-        next_version="$major.$minor.$((patch + 1))"
-
-        echo "Current version: $current_version"
-        echo "Next version: $next_version"
-
-        # Set the next version for future steps
-        echo "::set-output name=next_version::$next_version"
-
-    # Step 3: Setup .NET environment
+    # Step 2: Setup .NET environment
     - name: Setup .NET
       uses: actions/setup-dotnet@v2
       with:
         dotnet-version: '7.0'  # Adjust according to your .NET version
 
-    # Step 4: Restore dependencies
-    - name: Restore dependencies
-      run: dotnet restore project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj
+    # Conditional Step: Restore, build, and pack based on selected libraries
+    - name: Build and Package Library1
+      if: startsWith(github.event.inputs.libraries, 'Library1') || github.event.inputs.libraries == 'Both'
+      run: |
+        # Restore dependencies for Library1
+        dotnet restore project/NugetApplication/Library1/Library1.csproj
 
-    # Step 5: Build the project
-    - name: Build the project
-      run: dotnet build project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release
+        # Build Library1
+        dotnet build project/NugetApplication/Library1/Library1.csproj --configuration Release
 
-    # Step 6: Pack the NuGet package with dynamic version
-    - name: Pack the library
-      run: dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.version.outputs.next_version }}
+        # Pack Library1
+        dotnet pack project/NugetApplication/Library1/Library1.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ github.event.inputs.package_version }}
 
-    # Step 7: Publish the NuGet package to GitHub Packages in 'nugetsourceamla' repository
+    - name: Build and Package Library2
+      if: github.event.inputs.libraries == 'Library2' || github.event.inputs.libraries == 'Both'
+      run: |
+        # Restore dependencies for Library2
+        dotnet restore project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj
+
+        # Build Library2
+        dotnet build project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release
+
+        # Pack Library2
+        dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ github.event.inputs.package_version }}
+
+    # Step 6: Publish the NuGet package to GitHub Packages in 'nugetsourceamla' repository
     - name: Publish NuGet Package
       env:
         GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}  # Personal access token or GitHub token
@@ -70,19 +69,3 @@ jobs:
           --source "https://nuget.pkg.github.com/git-hub-amla/index.json" \
           --api-key $GITHUB_TOKEN \
           --skip-duplicate
-
-    # Step 8: Update version.json with the new version
-    - name: Update version.json
-      run: |
-        # Update version.json with the new version
-        jq --arg new_version "${{ steps.version.outputs.next_version }}" '.version = $new_version' project/version.json > tmp.json && mv tmp.json project/version.json
-
-    # Step 9: Commit and Push Updated Version
-    - name: Commit and Push Updated Version
-      run: |
-        git config user.name "GitHub Actions"
-        git config user.email "actions@github.com"
-        git add project/version.json
-        git commit -m "Update version to ${{ steps.version.outputs.next_version }}"
-        git push
-      working-directory: project  # Ensure you're in the correct directory where .git is located
