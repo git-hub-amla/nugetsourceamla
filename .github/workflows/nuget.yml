@@ -6,19 +6,19 @@ on:
       current_version:
         description: 'Current version (Read-only)'
         required: false
-        default: ''
+        default: ''  # This will be set dynamically by the workflow
       last_build_date:
         description: 'Date of the last build (Read-only)'
         required: false
-        default: ''
+        default: ''  # This will be set dynamically by the workflow
       last_build_version:
         description: 'Version of the last build (Read-only)'
         required: false
-        default: ''
+        default: ''  # This will be set dynamically by the workflow
       next_version:
         description: 'Next version (Editable)'
         required: true
-        default: ''  # This will be set dynamically by the workflow
+        default: '1.0.1'  # Default to 1.0.1 but will be dynamically set based on history
 
 jobs:
   recommend_version:
@@ -39,8 +39,6 @@ jobs:
       id: version
       run: |
         current_date=$(date +"%Y-%m-%d")
-        current_version=""
-        next_version=""
         
         # Check if VERSION_HISTORY.json exists, if not create it
         if [ ! -f VERSION_HISTORY.json ]; then
@@ -88,7 +86,7 @@ jobs:
         echo "::set-output name=last_build_date::$last_build_date"
         echo "::set-output name=last_build_version::$last_build_version"
         echo "::set-output name=next_version::$next_version"
-
+        
   build:
     needs: recommend_version
     runs-on: ubuntu-latest
@@ -111,7 +109,7 @@ jobs:
       run: dotnet build project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release
 
     - name: Pack the library
-      run: dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.version.outputs.next_version }}
+      run: dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ needs.recommend_version.outputs.next_version }}
 
     - name: Publish NuGet Package
       env:
@@ -126,6 +124,9 @@ jobs:
       run: |
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
+        version_data=$(jq -n --arg version "${{ needs.recommend_version.outputs.next_version }}" --arg date "$(date +"%Y-%m-%d")" '[{"version": $version, "date": $date}]')
+        version_history=$(cat VERSION_HISTORY.json | jq ". + $version_data")
+        echo "$version_history" > VERSION_HISTORY.json
         git add VERSION_HISTORY.json
-        git commit -m "Update version history with ${{ steps.version.outputs.next_version }}"
+        git commit -m "Update version history with ${{ needs.recommend_version.outputs.next_version }}"
         git push
