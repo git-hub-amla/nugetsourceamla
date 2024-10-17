@@ -8,20 +8,11 @@ on:
         required: false
         default: 'false'  # Default to unchecked
         type: boolean
-      current_version:
-        description: 'Current version (Read-only)'
-        required: false
-        default: ''
-      next_version:
-        description: 'Next version (Editable)'
-        required: true
-        default: ''
 
 jobs:
   recommend_version:
     runs-on: ubuntu-latest
     outputs:
-      current_version: ${{ steps.version.outputs.current_version }}
       next_version: ${{ steps.version.outputs.next_version }}
 
     steps:
@@ -60,7 +51,6 @@ jobs:
         echo "Next version: $next_version"
 
         # Output variables for the next job
-        echo "::set-output name=current_version::$current_version"
         echo "::set-output name=next_version::$next_version"
 
   build:
