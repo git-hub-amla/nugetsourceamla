@@ -3,35 +3,38 @@ name: Build and Package NuGet
 on:
   workflow_dispatch:  # Enables manual triggering with inputs
     inputs:
+      # Library 1
       build_library1:
-        description: 'Build Library1? (Check to build)  \nKeep current version? (Check to skip version update)'
+        description: '### Library 1  \nBuild Library1? (Check to build)'
         required: true
         default: false  # False by default
         type: boolean
       keep_version1:
-        description: 'Keep current version for Library1?'
+        description: 'Keep current version for Library1? (Enabled only if Building Library1 is selected)'
         required: true
         default: false
         type: boolean
 
+      # Library 2
       build_library2:
-        description: 'Build Library2? (Check to build)  \nKeep current version? (Check to skip version update)'
+        description: '### Library 2  \nBuild Library2? (Check to build)'
         required: true
         default: false  # False by default
         type: boolean
       keep_version2:
-        description: 'Keep current version for Library2?'
+        description: 'Keep current version for Library2? (Enabled only if Building Library2 is selected)'
         required: true
         default: false
         type: boolean
 
+      # Library 3
       build_library3:
-        description: 'Build Library3? (Check to build)  \nKeep current version? (Check to skip version update)'
+        description: '### Library 3  \nBuild Library3? (Check to build)'
         required: true
         default: false  # False by default
         type: boolean
       keep_version3:
-        description: 'Keep current version for Library3?'
+        description: 'Keep current version for Library3? (Enabled only if Building Library3 is selected)'
         required: true
         default: false
         type: boolean
@@ -71,25 +74,36 @@ jobs:
         version2=$(jq -r '.Library2.version' version_repo/version.json)
         version3=$(jq -r '.Library3.version' version_repo/version.json)
 
+        # Initialize new version variables
+        new_version1=""
+        new_version2=""
+        new_version3=""
+
         # Increment patch version for Library1 if selected and not keeping current version
-        if [ "${{ github.event.inputs.build_library1 }}" == 'true' ] && [ "${{ github.event.inputs.keep_version1 }}" == 'false' ]; then
-          IFS='.' read -ra ADDR <<< "$version1"
-          patch=$((ADDR[2] + 1))
-          new_version1="${ADDR[0]}.${ADDR[1]}.$patch"
+        if [ "${{ github.event.inputs.build_library1 }}" == 'true' ]; then
+          if [ "${{ github.event.inputs.keep_version1 }}" == 'false' ]; then
+            IFS='.' read -ra ADDR <<< "$version1"
+            patch=$((ADDR[2] + 1))
+            new_version1="${ADDR[0]}.${ADDR[1]}.$patch"
+          fi
         fi
 
         # Increment patch version for Library2 if selected and not keeping current version
-        if [ "${{ github.event.inputs.build_library2 }}" == 'true' ] && [ "${{ github.event.inputs.keep_version2 }}" == 'false' ]; then
-          IFS='.' read -ra ADDR <<< "$version2"
-          patch=$((ADDR[2] + 1))
-          new_version2="${ADDR[0]}.${ADDR[1]}.$patch"
+        if [ "${{ github.event.inputs.build_library2 }}" == 'true' ]; then
+          if [ "${{ github.event.inputs.keep_version2 }}" == 'false' ]; then
+            IFS='.' read -ra ADDR <<< "$version2"
+            patch=$((ADDR[2] + 1))
+            new_version2="${ADDR[0]}.${ADDR[1]}.$patch"
+          fi
         fi
 
         # Increment patch version for Library3 if selected and not keeping current version
-        if [ "${{ github.event.inputs.build_library3 }}" == 'true' ] && [ "${{ github.event.inputs.keep_version3 }}" == 'false' ]; then
-          IFS='.' read -ra ADDR <<< "$version3"
-          patch=$((ADDR[2] + 1))
-          new_version3="${ADDR[0]}.${ADDR[1]}.$patch"
+        if [ "${{ github.event.inputs.build_library3 }}" == 'true' ]; then
+          if [ "${{ github.event.inputs.keep_version3 }}" == 'false' ]; then
+            IFS='.' read -ra ADDR <<< "$version3"
+            patch=$((ADDR[2] + 1))
+            new_version3="${ADDR[0]}.${ADDR[1]}.$patch"
+          fi
         fi
 
         # Output the incremented versions for all libraries
@@ -107,8 +121,10 @@ jobs:
         # Build Library1
         dotnet build project/NugetApplication/Library1/Library1.csproj --configuration Release
 
-        # Pack Library1 with the incremented version
-        dotnet pack project/NugetApplication/Library1/Library1.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.increment_versions.outputs.new_version1 }}
+        # Pack Library1 with the incremented version if it is being updated
+        if [ "${{ github.event.inputs.keep_version1 }}" == 'false' ]; then
+          dotnet pack project/NugetApplication/Library1/Library1.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.increment_versions.outputs.new_version1 }}
+        fi
 
     # Conditional Step: Restore, build, and pack Library2 if selected
     - name: Build and Package Library2
@@ -120,8 +136,10 @@ jobs:
         # Build Library2
         dotnet build project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release
 
-        # Pack Library2 with the incremented version
-        dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.increment_versions.outputs.new_version2 }}
+        # Pack Library2 with the incremented version if it is being updated
+        if [ "${{ github.event.inputs.keep_version2 }}" == 'false' ]; then
+          dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.increment_versions.outputs.new_version2 }}
+        fi
 
     # Conditional Step: Restore, build, and pack Library3 if selected
     - name: Build and Package Library3
@@ -133,8 +151,10 @@ jobs:
         # Build Library3
         dotnet build project/NugetApplication/ClassLibrary3/ClassLibrary3.csproj --configuration Release
 
-        # Pack Library3 with the incremented version
-        dotnet pack project/NugetApplication/ClassLibrary3/ClassLibrary3.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.increment_versions.outputs.new_version3 }}
+        # Pack Library3 with the incremented version if it is being updated
+        if [ "${{ github.event.inputs.keep_version3 }}" == 'false' ]; then
+          dotnet pack project/NugetApplication/ClassLibrary3/ClassLibrary3.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.increment_versions.outputs.new_version3 }}
+        fi
 
     # Step 6: Publish the NuGet package to GitHub Packages in 'nugetsourceamla' repository
     - name: Publish NuGet Package
@@ -171,6 +191,9 @@ jobs:
             jq ".Library3.version = \"${{ steps.increment_versions.outputs.new_version3 }}\" | .Library3.history += [{\"version\": \"${{ steps.increment_versions.outputs.new_version3 }}\", \"date\": \"$timestamp\"}]" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
           fi
         fi
+
+        # Limit history to last 5 entries for each library
+        jq '(.Library1.history | reverse | .[0:5]) as $h1 | (.Library1.history = $h1 | .Library2.history | reverse | .[0:5]) as $h2 | (.Library2.history = $h2 | .Library3.history | reverse | .[0:5]) as $h3 | (.Library3.history = $h3)' version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
 
         # Commit and push the updated version.json file
         cd version_repo
