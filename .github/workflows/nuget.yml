@@ -18,6 +18,11 @@ on:
         required: true
         default: false  # False by default
         type: boolean
+      branch:
+        description: 'Branch Name'
+        required: false
+        default: 'dev'  # Default branch value
+        type: string
 
 jobs:
   build:
@@ -50,9 +55,10 @@ jobs:
     - name: Read and Increment Versions
       id: increment_versions
       run: |
-        version1=$(jq -r '.Library1.version // "1.0.0"' version_repo/version.json)
-        version2=$(jq -r '.Library2.version // "1.0.0"' version_repo/version.json)
-        version3=$(jq -r '.Library3.version // "1.0.0"' version_repo/version.json)
+        branch="${{ github.event.inputs.branch }}"
+        version1=$(jq -r ".\"$branch\".Library1.version // \"1.0.0\"" version_repo/version.json)
+        version2=$(jq -r ".\"$branch\".Library2.version // \"1.0.0\"" version_repo/version.json)
+        version3=$(jq -r ".\"$branch\".Library3.version // \"1.0.0\"" version_repo/version.json)
 
         # Increment patch version for Library1 if selected
         if [ "${{ github.event.inputs.build_library1 }}" == 'true' ]; then
@@ -136,17 +142,24 @@ jobs:
         # Get current date and time
         timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-        # Update version.json with the new version and history
+        # Update version.json with the new version and history for the specified branch
+        branch="${{ github.event.inputs.branch }}"
+
+        # Initialize branch section if it doesn't exist
+        if ! jq -e ".\"$branch\"" version_repo/version.json > /dev/null; then
+          jq ". + {\"$branch\": {\"Library1\": {\"version\": \"1.0.0\", \"history\": []}, \"Library2\": {\"version\": \"1.0.0\", \"history\": []}, \"Library3\": {\"version\": \"1.0.0\", \"history\": []}}" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
+        fi
+
         if [ "${{ github.event.inputs.build_library1 }}" == 'true' ]; then
-          jq ".Library1.version = \"${{ steps.increment_versions.outputs.new_version1 }}\" | .Library1.history += [{\"version\": \"${{ steps.increment_versions.outputs.new_version1 }}\", \"date\": \"$timestamp\"}]" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
+          jq ".\"$branch\".Library1.version = \"${{ steps.increment_versions.outputs.new_version1 }}\" | .\"$branch\".Library1.history += [{\"version\": \"${{ steps.increment_versions.outputs.new_version1 }}\", \"date\": \"$timestamp\"}]" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
         fi
 
         if [ "${{ github.event.inputs.build_library2 }}" == 'true' ]; then
-          jq ".Library2.version = \"${{ steps.increment_versions.outputs.new_version2 }}\" | .Library2.history += [{\"version\": \"${{ steps.increment_versions.outputs.new_version2 }}\", \"date\": \"$timestamp\"}]" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
+          jq ".\"$branch\".Library2.version = \"${{ steps.increment_versions.outputs.new_version2 }}\" | .\"$branch\".Library2.history += [{\"version\": \"${{ steps.increment_versions.outputs.new_version2 }}\", \"date\": \"$timestamp\"}]" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
         fi
 
         if [ "${{ github.event.inputs.build_library3 }}" == 'true' ]; then
-          jq ".Library3.version = \"${{ steps.increment_versions.outputs.new_version3 }}\" | .Library3.history += [{\"version\": \"${{ steps.increment_versions.outputs.new_version3 }}\", \"date\": \"$timestamp\"}]" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
+          jq ".\"$branch\".Library3.version = \"${{ steps.increment_versions.outputs.new_version3 }}\" | .\"$branch\".Library3.history += [{\"version\": \"${{ steps.increment_versions.outputs.new_version3 }}\", \"date\": \"$timestamp\"}]" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
         fi
 
         # Commit and push the updated version.json file
@@ -154,5 +167,5 @@ jobs:
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
         git add version.json
-        git commit -m "Update version.json after build"
+        git commit -m "Update version.json after build on branch $branch"
         git push
