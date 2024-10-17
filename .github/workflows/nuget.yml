@@ -7,16 +7,26 @@ on:
         description: 'Current version (Read-only)'
         required: false
         default: ''
+      last_build_date:
+        description: 'Date of the last build (Read-only)'
+        required: false
+        default: ''
+      last_build_version:
+        description: 'Version of the last build (Read-only)'
+        required: false
+        default: ''
       next_version:
         description: 'Next version (Editable)'
         required: true
-        default: '1.0.1'
+        default: ''  # This will be set dynamically by the workflow
 
 jobs:
   recommend_version:
     runs-on: ubuntu-latest
     outputs:
       current_version: ${{ steps.version.outputs.current_version }}
+      last_build_date: ${{ steps.version.outputs.last_build_date }}
+      last_build_version: ${{ steps.version.outputs.last_build_version }}
       next_version: ${{ steps.version.outputs.next_version }}
 
     steps:
@@ -28,17 +38,16 @@ jobs:
     - name: Read and update version history
       id: version
       run: |
-        # Read version history and get the current date
         current_date=$(date +"%Y-%m-%d")
         current_version=""
         next_version=""
         
-        # Read the VERSION_HISTORY.json file (create if not exists)
+        # Check if VERSION_HISTORY.json exists, if not create it
         if [ ! -f VERSION_HISTORY.json ]; then
           echo '[]' > VERSION_HISTORY.json
         fi
-        
-        # Load the version history
+
+        # Load the version history from VERSION_HISTORY.json
         version_history=$(cat VERSION_HISTORY.json)
 
         # Remove versions older than 10 days
@@ -48,31 +57,36 @@ jobs:
         # Save filtered versions back to VERSION_HISTORY.json
         echo "$filtered_versions" > VERSION_HISTORY.json
 
-        # Get the latest version from the history
-        current_version=$(echo "$filtered_versions" | jq -r '.[-1].version')
+        # Get the latest version and build date from the history
+        last_build_version=$(echo "$filtered_versions" | jq -r '.[-1].version')
+        last_build_date=$(echo "$filtered_versions" | jq -r '.[-1].date')
 
-        # If no current version, set to 1.0.0
-        if [ -z "$current_version" ] || [ "$current_version" = "null" ]; then
-          current_version="1.0.0"
+        # If no current version, default to 1.0.0
+        if [ -z "$last_build_version" ] || [ "$last_build_version" = "null" ]; then
+          last_build_version="1.0.0"
+          last_build_date="$current_date"
         fi
 
-        # Increment the patch number for the next version
+        # Set current version to the last build version
+        current_version="$last_build_version"
+
+        # Suggest the next version (increment patch number)
         IFS='.' read -ra ADDR <<< "$current_version"
         major=${ADDR[0]}
         minor=${ADDR[1]}
         patch=${ADDR[2]}
         next_version="$major.$minor.$((patch + 1))"
 
-        # Add the new version entry to the history
-        new_version_entry=$(jq -n --arg version "$next_version" --arg date "$current_date" \
-        '{version: $version, date: $date}')
+        # Display current version and last build info in logs
+        echo "Current version: $current_version"
+        echo "Last build date: $last_build_date"
+        echo "Last build version: $last_build_version"
+        echo "Recommended next version: $next_version"
 
-        # Append new version to the history and save
-        updated_versions=$(echo "$filtered_versions" | jq --argjson new_version "$new_version_entry" '. + [$new_version]')
-        echo "$updated_versions" > VERSION_HISTORY.json
-
-        # Output current and next version
+        # Output variables for the next job
         echo "::set-output name=current_version::$current_version"
+        echo "::set-output name=last_build_date::$last_build_date"
+        echo "::set-output name=last_build_version::$last_build_version"
         echo "::set-output name=next_version::$next_version"
 
   build:
@@ -97,7 +111,7 @@ jobs:
       run: dotnet build project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release
 
     - name: Pack the library
-      run: dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ github.event.inputs.next_version }}
+      run: dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.version.outputs.next_version }}
 
     - name: Publish NuGet Package
       env:
@@ -113,5 +127,5 @@ jobs:
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
         git add VERSION_HISTORY.json
-        git commit -m "Update version history with ${{ github.event.inputs.next_version }}"
+        git commit -m "Update version history with ${{ steps.version.outputs.next_version }}"
         git push
