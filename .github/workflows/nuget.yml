@@ -4,14 +4,14 @@ on:
   workflow_dispatch:  # Enables manual triggering with inputs
     inputs:
       build_library1:
-        description: 'Build Library1?'  # Mimic a checkbox for Library1
+        description: 'Build Library1?'  # Checkbox for Library1
         required: true
-        default: false  # False by default, can be changed when running manually
+        default: false  # False by default
         type: boolean
       build_library2:
-        description: 'Build Library2?'  # Mimic a checkbox for Library2
+        description: 'Build Library2?'  # Checkbox for Library2
         required: true
-        default: false  # False by default, can be changed when running manually
+        default: false  # False by default
         type: boolean
 
 jobs:
@@ -27,11 +27,29 @@ jobs:
         token: ${{ secrets.ACCESS_TOKEN }}     # Using a secret for secure authentication
         path: project                         # Clone the repo into a folder named "project"
 
-    # Step 2: Setup .NET environment
+    # Step 2: Checkout the version.json from nugetsourceamla repository
+    - name: Checkout the version.json from nugetsourceamla repository
+      uses: actions/checkout@v2
+      with:
+        repository: git-hub-amla/nugetsourceamla  # Clone the version.json from this repo
+        token: ${{ secrets.ACCESS_TOKEN }}
+        path: version_repo  # Store in a separate folder to avoid conflicts
+
+    # Step 3: Setup .NET environment
     - name: Setup .NET
       uses: actions/setup-dotnet@v2
       with:
         dotnet-version: '7.0'  # Adjust according to your .NET version
+
+    # Step 4: Read the current version from version.json
+    - name: Read current versions
+      id: read_versions
+      run: |
+        version1=$(jq -r '.Library1.version' version_repo/version.json)
+        version2=$(jq -r '.Library2.version' version_repo/version.json)
+
+        echo "::set-output name=version1::$version1"
+        echo "::set-output name=version2::$version2"
 
     # Conditional Step: Restore, build, and pack Library1 if selected
     - name: Build and Package Library1
@@ -43,8 +61,8 @@ jobs:
         # Build Library1
         dotnet build project/NugetApplication/Library1/Library1.csproj --configuration Release
 
-        # Pack Library1 with hardcoded version 1.0.3
-        dotnet pack project/NugetApplication/Library1/Library1.csproj --configuration Release --output ./nupkgs /p:PackageVersion=1.0.3
+        # Pack Library1 with the version from version.json
+        dotnet pack project/NugetApplication/Library1/Library1.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.read_versions.outputs.version1 }}
 
     # Conditional Step: Restore, build, and pack Library2 if selected
     - name: Build and Package Library2
@@ -56,8 +74,8 @@ jobs:
         # Build Library2
         dotnet build project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release
 
-        # Pack Library2 with hardcoded version 1.0.3
-        dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs /p:PackageVersion=1.0.3
+        # Pack Library2 with the version from version.json
+        dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.read_versions.outputs.version2 }}
 
     # Step 6: Publish the NuGet package to GitHub Packages in 'nugetsourceamla' repository
     - name: Publish NuGet Package
@@ -68,3 +86,37 @@ jobs:
           --source "https://nuget.pkg.github.com/git-hub-amla/index.json" \
           --api-key $GITHUB_TOKEN \
           --skip-duplicate
+
+    # Step 7: Increment the version in version.json after a successful build
+    - name: Update version.json
+      if: github.event.inputs.build_library1 == 'true' || github.event.inputs.build_library2 == 'true'
+      run: |
+        # Read the current versions
+        version1=$(jq -r '.Library1.version' version_repo/version.json)
+        version2=$(jq -r '.Library2.version' version_repo/version.json)
+
+        # Get current date and time
+        timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+        # Increment the patch number for selected libraries
+        if [ "${{ github.event.inputs.build_library1 }}" == 'true' ]; then
+          IFS='.' read -ra ADDR <<< "$version1"
+          patch=$((ADDR[2] + 1))
+          new_version1="${ADDR[0]}.${ADDR[1]}.$patch"
+          jq ".Library1.version = \"$new_version1\" | .Library1.history += [{\"version\": \"$new_version1\", \"date\": \"$timestamp\"}]" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
+        fi
+
+        if [ "${{ github.event.inputs.build_library2 }}" == 'true' ]; then
+          IFS='.' read -ra ADDR <<< "$version2"
+          patch=$((ADDR[2] + 1))
+          new_version2="${ADDR[0]}.${ADDR[1]}.$patch"
+          jq ".Library2.version = \"$new_version2\" | .Library2.history += [{\"version\": \"$new_version2\", \"date\": \"$timestamp\"}]" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
+        fi
+
+        # Commit and push the updated version.json file
+        cd version_repo
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add version.json
+        git commit -m "Update version.json after build"
+        git push
