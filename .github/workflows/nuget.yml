@@ -10,92 +10,89 @@ on:
         type: boolean
 
 jobs:
-  recommend_version:
+  build:
     runs-on: ubuntu-latest
-    outputs:
-      next_version: ${{ steps.version.outputs.next_version }}
 
     steps:
+    # Step 1: Checkout the project repository
     - name: Checkout the project repository
       uses: actions/checkout@v2
       with:
-        token: ${{ secrets.ACCESS_TOKEN }}
+        repository: git-hub-amla/projectamla  # Replace with your repo name if different
+        token: ${{ secrets.ACCESS_TOKEN }}     # Using a secret for secure authentication
+        path: project                         # Clone the repo into a folder named "project"
 
-    - name: Read and update version from version.json
+    # Step 2: Read version from version.json and calculate the next version
+    - name: Read and increment version
       id: version
       run: |
-        current_date=$(date +"%Y-%m-%d")
-
-        # Check if version.json exists, if not create it with default version
-        if [ ! -f version.json ]; then
-          echo '{"version": "1.0.0"}' > version.json
+        # Ensure the version.json file exists, create it with 1.0.0 if not found
+        if [ ! -f project/version.json ]; then
+          echo '{"version": "1.0.0"}' > project/version.json
         fi
-        
-        # Load the current version from version.json
-        current_version=$(jq -r '.version' version.json)
 
-        # Determine next version
+        # Read the current version from version.json
+        current_version=$(jq -r '.version' project/version.json)
+
+        # Split the version into major, minor, patch
         IFS='.' read -ra ADDR <<< "$current_version"
         major=${ADDR[0]}
         minor=${ADDR[1]}
         patch=${ADDR[2]}
-        
-        # Check if the force_same_version input is true
+
+        # Check if the user wants to force the same version
         if [[ "${{ github.event.inputs.force_same_version }}" == "true" ]]; then
           next_version="$current_version"
         else
+          # Increment the patch number
           next_version="$major.$minor.$((patch + 1))"
         fi
 
         echo "Current version: $current_version"
         echo "Next version: $next_version"
 
-        # Output variables for the next job
+        # Set the next version for future steps
         echo "::set-output name=next_version::$next_version"
 
-  build:
-    needs: recommend_version
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout the project repository
-      uses: actions/checkout@v2
-      with:
-        path: project  # Ensures the repo is cloned in the "project" folder
-        token: ${{ secrets.ACCESS_TOKEN }}
-
+    # Step 3: Setup .NET environment
     - name: Setup .NET
       uses: actions/setup-dotnet@v2
       with:
-        dotnet-version: '7.0'
+        dotnet-version: '7.0'  # Adjust according to your .NET version
 
+    # Step 4: Restore dependencies
     - name: Restore dependencies
       run: dotnet restore project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj
 
+    # Step 5: Build the project
     - name: Build the project
       run: dotnet build project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release
 
+    # Step 6: Pack the NuGet package with dynamic version
     - name: Pack the library
       run: dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.version.outputs.next_version }}
 
+    # Step 7: Publish the NuGet package to GitHub Packages in 'nugetsourceamla' repository
     - name: Publish NuGet Package
       env:
-        GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}  # Personal access token or GitHub token
       run: |
         dotnet nuget push ./nupkgs/*.nupkg \
           --source "https://nuget.pkg.github.com/git-hub-amla/index.json" \
           --api-key $GITHUB_TOKEN \
           --skip-duplicate
 
+    # Step 8: Update version.json with the new version
     - name: Update version.json
       run: |
-        # Update the version.json with the next version
-        jq --arg new_version "${{ steps.version.outputs.next_version }}" '.version = $new_version' version.json > tmp.json && mv tmp.json version.json
+        # Update version.json with the new version
+        jq --arg new_version "${{ steps.version.outputs.next_version }}" '.version = $new_version' project/version.json > tmp.json && mv tmp.json project/version.json
 
+    # Step 9: Commit and Push Updated Version
     - name: Commit and Push Updated Version
       run: |
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
-        git add version.json
+        git add project/version.json
         git commit -m "Update version to ${{ steps.version.outputs.next_version }}"
         git push
