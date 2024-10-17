@@ -19,13 +19,13 @@ jobs:
         dotnet-version: '7.0'  # Adjust to your project's .NET version
 
     - name: Restore dependencies
-      run: dotnet restore NugetApplication/ClassLibrary2/ClassLibrary2.csproj
+      run: dotnet restore NugetApplication/ClassLibrary2.csproj
 
     - name: Build the project
-      run: dotnet build NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release
+      run: dotnet build NugetApplication/ClassLibrary2.csproj --configuration Release
 
     - name: Pack the library
-      run: dotnet pack NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs
+      run: dotnet pack NugetApplication/ClassLibrary2.csproj --configuration Release --output ./nupkgs
 
     - name: Publish NuGet Package
       env:
