@@ -3,48 +3,108 @@ name: Build and Package NuGet
 on:
   workflow_dispatch:  # Enables manual triggering with inputs
     inputs:
-      package_version:
-        description: 'Version of the NuGet package'  # Prompt for the input
+      force_same_version:
+        description: 'Force creation of the same version (checkbox)'
+        required: false
+        default: 'false'  # Default to unchecked
+        type: boolean
+      current_version:
+        description: 'Current version (Read-only)'
+        required: false
+        default: ''
+      next_version:
+        description: 'Next version (Editable)'
         required: true
-        default: '1.0.0'  # Default version, can be changed when running manually
+        default: ''
 
 jobs:
-  build:
+  recommend_version:
     runs-on: ubuntu-latest
+    outputs:
+      current_version: ${{ steps.version.outputs.current_version }}
+      next_version: ${{ steps.version.outputs.next_version }}
 
     steps:
-    # Step 1: Checkout the project repository
     - name: Checkout the project repository
       uses: actions/checkout@v2
       with:
-        repository: git-hub-amla/projectamla  # Replace with your repo name if different
-        token: ${{ secrets.ACCESS_TOKEN }}     # Using a secret for secure authentication
-        path: project                         # Clone the repo into a folder named "project"
+        token: ${{ secrets.ACCESS_TOKEN }}
 
-    # Step 2: Setup .NET environment
+    - name: Read and update version from version.json
+      id: version
+      run: |
+        current_date=$(date +"%Y-%m-%d")
+
+        # Check if version.json exists, if not create it with default version
+        if [ ! -f version.json ]; then
+          echo '{"version": "1.0.0"}' > version.json
+        fi
+        
+        # Load the current version from version.json
+        current_version=$(jq -r '.version' version.json)
+
+        # Determine next version
+        IFS='.' read -ra ADDR <<< "$current_version"
+        major=${ADDR[0]}
+        minor=${ADDR[1]}
+        patch=${ADDR[2]}
+        
+        # Check if the force_same_version input is true
+        if [[ "${{ github.event.inputs.force_same_version }}" == "true" ]]; then
+          next_version="$current_version"
+        else
+          next_version="$major.$minor.$((patch + 1))"
+        fi
+
+        echo "Current version: $current_version"
+        echo "Next version: $next_version"
+
+        # Output variables for the next job
+        echo "::set-output name=current_version::$current_version"
+        echo "::set-output name=next_version::$next_version"
+
+  build:
+    needs: recommend_version
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout the project repository
+      uses: actions/checkout@v2
+      with:
+        token: ${{ secrets.ACCESS_TOKEN }}
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v2
       with:
-        dotnet-version: '7.0'  # Adjust according to your .NET version
+        dotnet-version: '7.0'
 
-    # Step 3: Restore dependencies
     - name: Restore dependencies
       run: dotnet restore project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj
 
-    # Step 4: Build the project
     - name: Build the project
       run: dotnet build project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release
 
-    # Step 5: Pack the NuGet package with dynamic version from input
     - name: Pack the library
-      run: dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ github.event.inputs.package_version }}
+      run: dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.version.outputs.next_version }}
 
-    # Step 6: Publish the NuGet package to GitHub Packages in 'nugetsourceamla' repository
     - name: Publish NuGet Package
       env:
-        GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}  # Personal access token or GitHub token
+        GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
       run: |
         dotnet nuget push ./nupkgs/*.nupkg \
           --source "https://nuget.pkg.github.com/git-hub-amla/index.json" \
           --api-key $GITHUB_TOKEN \
           --skip-duplicate
+
+    - name: Update version.json
+      run: |
+        # Update the version.json with the next version
+        jq --arg new_version "${{ steps.version.outputs.next_version }}" '.version = $new_version' version.json > tmp.json && mv tmp.json version.json
+
+    - name: Commit and Push Updated Version
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add version.json
+        git commit -m "Update version to ${{ steps.version.outputs.next_version }}"
+        git push
