@@ -2,50 +2,47 @@ name: Build and Package NuGet
 
 on:
   workflow_dispatch:  # Enables manual triggering with inputs
-    # General version input description
     inputs:
-
-
-      # Library 1 build checkbox
       build_library1:
         description: 'Build Library 1?'
         required: true
         default: false  # False by default
         type: boolean
 
-      # Library 1 version input
       version_library1:
-        description: 'Version for Library 1'
+        description: 'Version for Library 1 (optional, auto-increment if empty)'
         required: false
         default: ''
         type: string
 
-      # Library 2 build checkbox
       build_library2:
         description: 'Build Library 2?'
         required: true
         default: false  # False by default
         type: boolean
 
-      # Library 2 version input
       version_library2:
-        description: 'Version for Library 2'
+        description: 'Version for Library 2 (optional, auto-increment if empty)'
         required: false
         default: ''
         type: string
 
-      # Library 3 build checkbox
       build_library3:
         description: 'Build Library 3?'
         required: true
         default: false  # False by default
         type: boolean
 
-      # Library 3 version input
       version_library3:
-        description: 'Version for Library 3'
+        description: 'Version for Library 3 (optional, auto-increment if empty)'
         required: false
         default: ''
+        type: string
+
+      branch:
+        description: 'Branch name to use for versioning'
+        required: true
+        default: 'master'
         type: string
 
 jobs:
@@ -61,13 +58,20 @@ jobs:
         token: ${{ secrets.ACCESS_TOKEN }}
         path: project
 
-    # Step 2: Checkout the version.json from nugetsourceamla repository
-    - name: Checkout the version.json from nugetsourceamla repository
-      uses: actions/checkout@v2
-      with:
-        repository: git-hub-amla/nugetsourceamla
-        token: ${{ secrets.ACCESS_TOKEN }}
-        path: version_repo
+    # Step 2: Determine the version file based on the selected branch
+    - name: Determine Version File
+      id: determine_version_file
+      run: |
+        branch_name="${{ github.event.inputs.branch }}"
+        version_file="version.${branch_name}.json"
+
+        # Check if the version file exists, create if it doesn't
+        if [ ! -f version_repo/$version_file ]; then
+          echo "{}" > version_repo/$version_file
+          echo "Created new version file: $version_file"
+        fi
+
+        echo "::set-output name=version_file::$version_file"
 
     # Step 3: Setup .NET environment
     - name: Setup .NET
@@ -75,13 +79,15 @@ jobs:
       with:
         dotnet-version: '7.0'
 
-    # Step 4: Read the current version from version.json and handle versioning logic
+    # Step 4: Read the current version from the branch-specific version file and handle versioning logic
     - name: Read and Determine Versions
       id: determine_versions
       run: |
-        version1=$(jq -r '.Library1.version' version_repo/version.json)
-        version2=$(jq -r '.Library2.version' version_repo/version.json)
-        version3=$(jq -r '.Library3.version' version_repo/version.json)
+        version_file="${{ steps.determine_version_file.outputs.version_file }}"
+
+        version1=$(jq -r '.Library1.version' version_repo/$version_file)
+        version2=$(jq -r '.Library2.version' version_repo/$version_file)
+        version3=$(jq -r '.Library3.version' version_repo/$version_file)
 
         # Initialize new version variables
         new_version1="${{ github.event.inputs.version_library1 }}"
@@ -185,31 +191,32 @@ jobs:
     - name: Update version.json
       if: github.event.inputs.build_library1 == 'true' || github.event.inputs.build_library2 == 'true' || github.event.inputs.build_library3 == 'true'
       run: |
+        version_file="${{ steps.determine_version_file.outputs.version_file }}"
         # Get current date and time
         timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
         # Update version.json with the new version and history
         if [ "${{ github.event.inputs.build_library1 }}" == 'true' ]; then
-          jq ".Library1.version = \"${{ steps.determine_versions.outputs.new_version1 }}\" | .Library1.history += [{\"version\": \"${{ steps.determine_versions.outputs.new_version1 }}\", \"date\": \"$timestamp\"}]" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
+          jq ".Library1.version = \"${{ steps.determine_versions.outputs.new_version1 }}\" | .Library1.history += [{\"version\": \"${{ steps.determine_versions.outputs.new_version1 }}\", \"date\": \"$timestamp\"}]" version_repo/$version_file > tmp.json && mv tmp.json version_repo/$version_file
         fi
 
         if [ "${{ github.event.inputs.build_library2 }}" == 'true' ]; then
-          jq ".Library2.version = \"${{ steps.determine_versions.outputs.new_version2 }}\" | .Library2.history += [{\"version\": \"${{ steps.determine_versions.outputs.new_version2 }}\", \"date\": \"$timestamp\"}]" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
+          jq ".Library2.version = \"${{ steps.determine_versions.outputs.new_version2 }}\" | .Library2.history += [{\"version\": \"${{ steps.determine_versions.outputs.new_version2 }}\", \"date\": \"$timestamp\"}]" version_repo/$version_file > tmp.json && mv tmp.json version_repo/$version_file
         fi
 
         if [ "${{ github.event.inputs.build_library3 }}" == 'true' ]; then
-          jq ".Library3.version = \"${{ steps.determine_versions.outputs.new_version3 }}\" | .Library3.history += [{\"version\": \"${{ steps.determine_versions.outputs.new_version3 }}\", \"date\": \"$timestamp\"}]" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
+          jq ".Library3.version = \"${{ steps.determine_versions.outputs.new_version3 }}\" | .Library3.history += [{\"version\": \"${{ steps.determine_versions.outputs.new_version3 }}\", \"date\": \"$timestamp\"}]" version_repo/$version_file > tmp.json && mv tmp.json version_repo/$version_file
         fi
 
         # Keep only the last 5 history entries for each library
         jq '(.Library1.history | length > 5) as $len | if $len > 5 then .Library1.history = .Library1.history[$len - 5:] else .Library1.history end |
             (.Library2.history | length > 5) as $len | if $len > 5 then .Library2.history = .Library2.history[$len - 5:] else .Library2.history end |
-            (.Library3.history | length > 5) as $len | if $len > 5 then .Library3.history = .Library3.history[$len - 5:] else .Library3.history end' version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
+            (.Library3.history | length > 5) as $len | if $len > 5 then .Library3.history = .Library3.history[$len - 5:] else .Library3.history end' version_repo/$version_file > tmp.json && mv tmp.json version_repo/$version_file
 
-        # Commit and push the updated version.json file
+        # Commit and push the updated version file
         cd version_repo
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
-        git add version.json
-        git commit -m "Update version.json after build"
+        git add $version_file
+        git commit -m "Update $version_file after build"
         git push
