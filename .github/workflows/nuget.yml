@@ -9,9 +9,9 @@ on:
         default: false  # False by default
         type: boolean
       library1_version:
-        description: 'Specify version for Library1 (e.g., Znode-gamma-1.0.7)'
+        description: 'Version for Library1 (e.g., znode-gamma-1.0.7)'  # Textbox for Library1 version
         required: false
-        default: ''  # Empty by default
+        default: ''
         type: string
       build_library2:
         description: 'Build Library2?'  # Checkbox for Library2
@@ -19,9 +19,9 @@ on:
         default: false  # False by default
         type: boolean
       library2_version:
-        description: 'Specify version for Library2 (e.g., Znode-gamma-1.0.7)'
+        description: 'Version for Library2 (e.g., znode-alpha-1.9.2)'  # Textbox for Library2 version
         required: false
-        default: ''  # Empty by default
+        default: ''
         type: string
       build_library3:
         description: 'Build Library3?'  # Checkbox for Library3
@@ -29,9 +29,9 @@ on:
         default: false  # False by default
         type: boolean
       library3_version:
-        description: 'Specify version for Library3 (e.g., Znode-gamma-1.0.7)'
+        description: 'Version for Library3 (e.g., amla-comm-1.9.3)'  # Textbox for Library3 version
         required: false
-        default: ''  # Empty by default
+        default: ''
         type: string
 
 jobs:
@@ -65,44 +65,28 @@ jobs:
     - name: Read and Increment Versions
       id: increment_versions
       run: |
-        version1=$(jq -r '.Library1.version // "1.0.0"' version_repo/version.json)
-        version2=$(jq -r '.Library2.version // "1.0.0"' version_repo/version.json)
-        version3=$(jq -r '.Library3.version // "1.0.0"' version_repo/version.json)
-
-        # Use specified version or increment patch version for Library1 if selected
-        if [ "${{ github.event.inputs.build_library1 }}" == 'true' ]; then
-          if [ -n "${{ github.event.inputs.library1_version }}" ]; then
-            new_version1="${{ github.event.inputs.library1_version }}"
-          else
-            IFS='.' read -ra ADDR <<< "$version1"
+        # Function to increment the version or return the input version
+        increment_version() {
+          local version_input=$1
+          if [ -z "$version_input" ]; then
+            # If no version is provided, read the current version from version.json
+            version=$(jq -r ".${2}.version // \"1.0.0\"" version_repo/version.json)
+            IFS='.' read -ra ADDR <<< "$version"
             patch=$((ADDR[2] + 1))
-            new_version1="${ADDR[0]}.${ADDR[1]}.$patch"
-          fi
-        fi
-
-        # Use specified version or increment patch version for Library2 if selected
-        if [ "${{ github.event.inputs.build_library2 }}" == 'true' ]; then
-          if [ -n "${{ github.event.inputs.library2_version }}" ]; then
-            new_version2="${{ github.event.inputs.library2_version }}"
+            new_version="${ADDR[0]}.${ADDR[1]}.$patch"
           else
-            IFS='.' read -ra ADDR <<< "$version2"
-            patch=$((ADDR[2] + 1))
-            new_version2="${ADDR[0]}.${ADDR[1]}.$patch"
+            # Use the provided version
+            new_version="$version_input"
           fi
-        fi
+          echo "$new_version"
+        }
 
-        # Use specified version or increment patch version for Library3 if selected
-        if [ "${{ github.event.inputs.build_library3 }}" == 'true' ]; then
-          if [ -n "${{ github.event.inputs.library3_version }}" ]; then
-            new_version3="${{ github.event.inputs.library3_version }}"
-          else
-            IFS='.' read -ra ADDR <<< "$version3
-            patch=$((ADDR[2] + 1))
-            new_version3="${ADDR[0]}.${ADDR[1]}.$patch"
-          fi
-        fi
+        # Get new versions for each library
+        new_version1=$(increment_version "${{ github.event.inputs.library1_version }}" "Library1")
+        new_version2=$(increment_version "${{ github.event.inputs.library2_version }}" "Library2")
+        new_version3=$(increment_version "${{ github.event.inputs.library3_version }}" "Library3")
 
-        # Output the incremented or specified versions for all libraries
+        # Output the incremented versions for all libraries
         echo "::set-output name=new_version1::$new_version1"
         echo "::set-output name=new_version2::$new_version2"
         echo "::set-output name=new_version3::$new_version3"
@@ -117,7 +101,7 @@ jobs:
         # Build Library1
         dotnet build project/NugetApplication/Library1/Library1.csproj --configuration Release
 
-        # Pack Library1 with the specified or incremented version
+        # Pack Library1 with the incremented version
         dotnet pack project/NugetApplication/Library1/Library1.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.increment_versions.outputs.new_version1 }}
 
     # Conditional Step: Restore, build, and pack Library2 if selected
@@ -130,7 +114,7 @@ jobs:
         # Build Library2
         dotnet build project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release
 
-        # Pack Library2 with the specified or incremented version
+        # Pack Library2 with the incremented version
         dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.increment_versions.outputs.new_version2 }}
 
     # Conditional Step: Restore, build, and pack Library3 if selected
@@ -143,7 +127,7 @@ jobs:
         # Build Library3
         dotnet build project/NugetApplication/ClassLibrary3/ClassLibrary3.csproj --configuration Release
 
-        # Pack Library3 with the specified or incremented version
+        # Pack Library3 with the incremented version
         dotnet pack project/NugetApplication/ClassLibrary3/ClassLibrary3.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.increment_versions.outputs.new_version3 }}
 
     # Step 6: Publish the NuGet package to GitHub Packages in 'nugetsourceamla' repository
