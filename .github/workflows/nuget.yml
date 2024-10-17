@@ -1,0 +1,37 @@
+name: Build and Package NuGet
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v2
+      with:
+        dotnet-version: '7.0'  # Change this to your target .NET version
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build the project
+      run: dotnet build --configuration Release
+
+    - name: Pack the library
+      run: dotnet pack --configuration Release --output ./nupkgs
+
+    - name: Publish NuGet Package
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Automatically provided by GitHub
+      run: |
+        dotnet nuget push ./nupkgs/*.nupkg \
+          --source "GitHub" \
+          --api-key $GITHUB_TOKEN \
+          --skip-duplicate
