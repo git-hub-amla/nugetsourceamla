@@ -6,9 +6,6 @@ on:
       # General version input description
       general_version:
         description: 'Version for libraries (optional, auto-increment if empty)'
-        required: false
-        default: ''
-        type: string
 
       # Library 1 build checkbox
       build_library1:
@@ -19,7 +16,7 @@ on:
 
       # Library 1 version input
       version_library1:
-        description: 'Version for Library 1 (optional, auto-increment if empty)'
+        description: 'Version for Library 1'
         required: false
         default: ''
         type: string
@@ -33,7 +30,7 @@ on:
 
       # Library 2 version input
       version_library2:
-        description: 'Version for Library 2 (optional, auto-increment if empty)'
+        description: 'Version for Library 2'
         required: false
         default: ''
         type: string
@@ -47,7 +44,7 @@ on:
 
       # Library 3 version input
       version_library3:
-        description: 'Version for Library 3 (optional, auto-increment if empty)'
+        description: 'Version for Library 3'
         required: false
         default: ''
         type: string
