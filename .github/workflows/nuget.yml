@@ -1,9 +1,12 @@
 name: Build and Package NuGet
 
 on:
-  push:
-    branches:
-      - main  # Trigger on push to the main branch
+  workflow_dispatch:  # Enables manual triggering with inputs
+    inputs:
+      package_version:
+        description: 'Version of the NuGet package'  # Prompt for the input
+        required: true
+        default: '1.0.0'  # Default version, can be changed when running manually
 
 jobs:
   build:
@@ -32,9 +35,9 @@ jobs:
     - name: Build the project
       run: dotnet build project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release
 
-    # Step 5: Pack the NuGet package
+    # Step 5: Pack the NuGet package with dynamic version from input
     - name: Pack the library
-      run: dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs
+      run: dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ github.event.inputs.package_version }}
 
     # Step 6: Publish the NuGet package to GitHub Packages in 'nugetsourceamla' repository
     - name: Publish NuGet Package
