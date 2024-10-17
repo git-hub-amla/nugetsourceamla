@@ -3,18 +3,16 @@ name: Build and Package NuGet
 on:
   workflow_dispatch:  # Enables manual triggering with inputs
     inputs:
-      package_version:
-        description: 'Version of the NuGet package'  # Prompt for the input
+      build_library1:
+        description: 'Build Library1?'  # Mimic a checkbox for Library1
         required: true
-        default: '1.0.0'  # Default version, can be changed when running manually
-      libraries:
-        description: 'Select Libraries to Build and Package'
+        default: false  # False by default, can be changed when running manually
+        type: boolean
+      build_library2:
+        description: 'Build Library2?'  # Mimic a checkbox for Library2
         required: true
-        type: choice
-        options:
-          - Library1
-          - Library2
-          - Both
+        default: false  # False by default, can be changed when running manually
+        type: boolean
 
 jobs:
   build:
@@ -35,9 +33,9 @@ jobs:
       with:
         dotnet-version: '7.0'  # Adjust according to your .NET version
 
-    # Conditional Step: Restore, build, and pack based on selected libraries
+    # Conditional Step: Restore, build, and pack Library1 if selected
     - name: Build and Package Library1
-      if: startsWith(github.event.inputs.libraries, 'Library1') || github.event.inputs.libraries == 'Both'
+      if: github.event.inputs.build_library1 == 'true'
       run: |
         # Restore dependencies for Library1
         dotnet restore project/NugetApplication/Library1/Library1.csproj
@@ -45,11 +43,12 @@ jobs:
         # Build Library1
         dotnet build project/NugetApplication/Library1/Library1.csproj --configuration Release
 
-        # Pack Library1
-        dotnet pack project/NugetApplication/Library1/Library1.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ github.event.inputs.package_version }}
+        # Pack Library1 with hardcoded version 1.0.3
+        dotnet pack project/NugetApplication/Library1/Library1.csproj --configuration Release --output ./nupkgs /p:PackageVersion=1.0.3
 
+    # Conditional Step: Restore, build, and pack Library2 if selected
     - name: Build and Package Library2
-      if: github.event.inputs.libraries == 'Library2' || github.event.inputs.libraries == 'Both'
+      if: github.event.inputs.build_library2 == 'true'
       run: |
         # Restore dependencies for Library2
         dotnet restore project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj
@@ -57,8 +56,8 @@ jobs:
         # Build Library2
         dotnet build project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release
 
-        # Pack Library2
-        dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ github.event.inputs.package_version }}
+        # Pack Library2 with hardcoded version 1.0.3
+        dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs /p:PackageVersion=1.0.3
 
     # Step 6: Publish the NuGet package to GitHub Packages in 'nugetsourceamla' repository
     - name: Publish NuGet Package
