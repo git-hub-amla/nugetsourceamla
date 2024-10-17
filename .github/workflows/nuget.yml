@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       current_version:
-        description: 'Current version (Read-only)'  # Display the current version
+        description: 'Current version (Read-only)'
         required: false
-        default: ''  # This will be set dynamically in the job
+        default: ''
       next_version:
-        description: 'Next version (Editable)'  # Suggest the next version
+        description: 'Next version (Editable)'
         required: true
-        default: '1.0.1'  # This will be set dynamically in the job
+        default: '1.0.1'
 
 jobs:
   recommend_version:
@@ -20,29 +20,58 @@ jobs:
       next_version: ${{ steps.version.outputs.next_version }}
 
     steps:
-    # Step 1: Checkout the project repository
     - name: Checkout the project repository
       uses: actions/checkout@v2
       with:
         token: ${{ secrets.ACCESS_TOKEN }}
 
-    # Step 2: Read the current version from VERSION.txt
-    - name: Read current version
+    - name: Read and update version history
       id: version
       run: |
-        current_version=$(cat VERSION.txt)
-        echo "Current version is $current_version"
+        # Read version history and get the current date
+        current_date=$(date +"%Y-%m-%d")
+        current_version=""
+        next_version=""
         
-        # Suggest the next version (increment the patch number by default)
+        # Read the VERSION_HISTORY.json file (create if not exists)
+        if [ ! -f VERSION_HISTORY.json ]; then
+          echo '[]' > VERSION_HISTORY.json
+        fi
+        
+        # Load the version history
+        version_history=$(cat VERSION_HISTORY.json)
+
+        # Remove versions older than 10 days
+        filtered_versions=$(echo "$version_history" | jq --arg current_date "$current_date" \
+        '[.[] | select((($current_date | strptime("%Y-%m-%d") | mktime) - (.date | strptime("%Y-%m-%d") | mktime)) <= 864000)]')
+
+        # Save filtered versions back to VERSION_HISTORY.json
+        echo "$filtered_versions" > VERSION_HISTORY.json
+
+        # Get the latest version from the history
+        current_version=$(echo "$filtered_versions" | jq -r '.[-1].version')
+
+        # If no current version, set to 1.0.0
+        if [ -z "$current_version" ] || [ "$current_version" = "null" ]; then
+          current_version="1.0.0"
+        fi
+
+        # Increment the patch number for the next version
         IFS='.' read -ra ADDR <<< "$current_version"
         major=${ADDR[0]}
         minor=${ADDR[1]}
         patch=${ADDR[2]}
         next_version="$major.$minor.$((patch + 1))"
 
-        echo "Recommended next version is $next_version"
+        # Add the new version entry to the history
+        new_version_entry=$(jq -n --arg version "$next_version" --arg date "$current_date" \
+        '{version: $version, date: $date}')
 
-        # Set the outputs for current and next version
+        # Append new version to the history and save
+        updated_versions=$(echo "$filtered_versions" | jq --argjson new_version "$new_version_entry" '. + [$new_version]')
+        echo "$updated_versions" > VERSION_HISTORY.json
+
+        # Output current and next version
         echo "::set-output name=current_version::$current_version"
         echo "::set-output name=next_version::$next_version"
 
@@ -51,36 +80,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Checkout the project repository
     - name: Checkout the project repository
       uses: actions/checkout@v2
       with:
         token: ${{ secrets.ACCESS_TOKEN }}
 
-    # Step 2: Setup .NET environment
     - name: Setup .NET
       uses: actions/setup-dotnet@v2
       with:
-        dotnet-version: '7.0'  # Adjust according to your .NET version
+        dotnet-version: '7.0'
 
-    # Step 3: Restore dependencies
     - name: Restore dependencies
       run: dotnet restore project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj
 
-    # Step 4: Build the project
     - name: Build the project
       run: dotnet build project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release
 
-    # Step 5: Pack the NuGet package with dynamic version from input
     - name: Pack the library
       run: dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ github.event.inputs.next_version }}
 
-    # Step 6: Publish the NuGet package to GitHub Packages in 'nugetsourceamla' repository
     - name: Publish NuGet Package
       env:
-        GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}  # Personal access token or GitHub token
+        GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
       run: |
         dotnet nuget push ./nupkgs/*.nupkg \
           --source "https://nuget.pkg.github.com/git-hub-amla/index.json" \
           --api-key $GITHUB_TOKEN \
           --skip-duplicate
+
+    - name: Commit and Push Updated Version History
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add VERSION_HISTORY.json
+        git commit -m "Update version history with ${{ github.event.inputs.next_version }}"
+        git push
