@@ -45,5 +45,14 @@
         }
       ]
     }
+  },
+  "Library1": {
+    "version": "1.0.0-alpha",
+    "history": [
+      {
+        "version": "1.0.0-alpha",
+        "date": "2024-10-17T21:34:47Z"
+      }
+    ]
   }
 }
