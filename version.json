@@ -1,6 +1,6 @@
 {
   "Library1": {
-    "version": "1.0.5",
+    "version": "1.0.6",
     "history": [
       {
         "version": "1.0.2",
@@ -17,11 +17,15 @@
       {
         "version": "1.0.5",
         "date": "2024-10-17T20:13:00Z"
+      },
+      {
+        "version": "1.0.6",
+        "date": "2024-10-17T20:18:04Z"
       }
     ]
   },
   "Library2": {
-    "version": "1.0.5",
+    "version": "1.0.6",
     "history": [
       {
         "version": "1.0.1",
@@ -38,6 +42,19 @@
       {
         "version": "1.0.5",
         "date": "2024-10-17T20:13:00Z"
+      },
+      {
+        "version": "1.0.6",
+        "date": "2024-10-17T20:18:04Z"
+      }
+    ]
+  },
+  "Library3": {
+    "version": "1.0.1",
+    "history": [
+      {
+        "version": "1.0.1",
+        "date": "2024-10-17T20:18:04Z"
       }
     ]
   }
