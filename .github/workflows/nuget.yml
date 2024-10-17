@@ -3,17 +3,19 @@ name: Build and Package NuGet
 on:
   workflow_dispatch:  # Enables manual triggering with inputs
     inputs:
+      # General version input
+      version:
+        description: 'Version for selected libraries (optional, auto-increment if empty)'
+        required: false
+        default: ''
+        type: string
+
       # Library 1
       build_library1:
         description: 'Build Library 1?'
         required: true
         default: false  # False by default
         type: boolean
-      version1:
-        description: 'Version for Library 1 (optional, auto-increment if empty)'
-        required: false
-        default: ''
-        type: string
 
       # Library 2
       build_library2:
@@ -21,11 +23,6 @@ on:
         required: true
         default: false  # False by default
         type: boolean
-      version2:
-        description: 'Version for Library 2 (optional, auto-increment if empty)'
-        required: false
-        default: ''
-        type: string
 
       # Library 3
       build_library3:
@@ -33,11 +30,6 @@ on:
         required: true
         default: false  # False by default
         type: boolean
-      version3:
-        description: 'Version for Library 3 (optional, auto-increment if empty)'
-        required: false
-        default: ''
-        type: string
 
 jobs:
   build:
@@ -81,40 +73,40 @@ jobs:
 
         # Determine new version for Library1
         if [ "${{ github.event.inputs.build_library1 }}" == 'true' ]; then
-          if [ -z "${{ github.event.inputs.version1 }}" ]; then
+          if [ -z "${{ github.event.inputs.version }}" ]; then
             # Auto-increment version
             IFS='.' read -ra ADDR <<< "$version1"
             patch=$((ADDR[2] + 1))
             new_version1="${ADDR[0]}.${ADDR[1]}.$patch"
           else
             # Use specified version
-            new_version1="${{ github.event.inputs.version1 }}"
+            new_version1="${{ github.event.inputs.version }}"
           fi
         fi
 
         # Determine new version for Library2
         if [ "${{ github.event.inputs.build_library2 }}" == 'true' ]; then
-          if [ -z "${{ github.event.inputs.version2 }}" ]; then
+          if [ -z "${{ github.event.inputs.version }}" ]; then
             # Auto-increment version
             IFS='.' read -ra ADDR <<< "$version2"
             patch=$((ADDR[2] + 1))
             new_version2="${ADDR[0]}.${ADDR[1]}.$patch"
           else
             # Use specified version
-            new_version2="${{ github.event.inputs.version2 }}"
+            new_version2="${{ github.event.inputs.version }}"
           fi
         fi
 
         # Determine new version for Library3
         if [ "${{ github.event.inputs.build_library3 }}" == 'true' ]; then
-          if [ -z "${{ github.event.inputs.version3 }}" ]; then
+          if [ -z "${{ github.event.inputs.version }}" ]; then
             # Auto-increment version
             IFS='.' read -ra ADDR <<< "$version3"
             patch=$((ADDR[2] + 1))
             new_version3="${ADDR[0]}.${ADDR[1]}.$patch"
           else
             # Use specified version
-            new_version3="${{ github.event.inputs.version3 }}"
+            new_version3="${{ github.event.inputs.version }}"
           fi
         fi
 
