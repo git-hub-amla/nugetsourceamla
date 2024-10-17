@@ -2,27 +2,21 @@ name: Build and Package NuGet
 
 on:
   workflow_dispatch:  # Enables manual triggering with inputs
-    inputs:
-      force_same_version:
-        description: 'Force creation of the same version (checkbox)'
-        required: false
-        default: 'false'  # Default to unchecked
-        type: boolean
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Checkout the project repository
+    # Step 1: Checkout the project repository with full history for commits
     - name: Checkout the project repository
       uses: actions/checkout@v2
       with:
         repository: git-hub-amla/projectamla  # Replace with your repo name if different
         token: ${{ secrets.ACCESS_TOKEN }}     # Using a secret for secure authentication
-        path: project                         # Clone the repo into a folder named "project"
+        fetch-depth: 0                        # Fetch full history for committing
 
-    # Step 2: Read version from version.json and calculate the next version
+    # Step 2: Read and increment version
     - name: Read and increment version
       id: version
       run: |
@@ -40,13 +34,8 @@ jobs:
         minor=${ADDR[1]}
         patch=${ADDR[2]}
 
-        # Check if the user wants to force the same version
-        if [[ "${{ github.event.inputs.force_same_version }}" == "true" ]]; then
-          next_version="$current_version"
-        else
-          # Increment the patch number
-          next_version="$major.$minor.$((patch + 1))"
-        fi
+        # Increment the patch number
+        next_version="$major.$minor.$((patch + 1))"
 
         echo "Current version: $current_version"
         echo "Next version: $next_version"
@@ -96,3 +85,4 @@ jobs:
         git add project/version.json
         git commit -m "Update version to ${{ steps.version.outputs.next_version }}"
         git push
+      working-directory: project  # Ensure you're in the correct directory where .git is located
