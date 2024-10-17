@@ -3,7 +3,7 @@ name: Build and Package NuGet
 on:
   push:
     branches:
-      - main
+      - main  # Change this if you want to trigger on a different branch
 
 jobs:
   build:
@@ -16,16 +16,16 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v2
       with:
-        dotnet-version: '7.0'  # Change this to your target .NET version
+        dotnet-version: '7.0'  # Adjust to your project's .NET version
 
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore NugetApplication/ClassLibrary2/ClassLibrary2.csproj
 
     - name: Build the project
-      run: dotnet build --configuration Release
+      run: dotnet build NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release
 
     - name: Pack the library
-      run: dotnet pack --configuration Release --output ./nupkgs
+      run: dotnet pack NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs
 
     - name: Publish NuGet Package
       env:
