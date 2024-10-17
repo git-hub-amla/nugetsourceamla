@@ -8,13 +8,28 @@ on:
         required: true
         default: false  # False by default
         type: boolean
+      keep_current_version1:
+        description: 'Keep current version for Library1?'  # Checkbox for keeping current version
+        required: true
+        default: false  # False by default
+        type: boolean
       build_library2:
         description: 'Build Library2?'  # Checkbox for Library2
         required: true
         default: false  # False by default
         type: boolean
+      keep_current_version2:
+        description: 'Keep current version for Library2?'  # Checkbox for keeping current version
+        required: true
+        default: false  # False by default
+        type: boolean
       build_library3:
         description: 'Build Library3?'  # Checkbox for Library3
+        required: true
+        default: false  # False by default
+        type: boolean
+      keep_current_version3:
+        description: 'Keep current version for Library3?'  # Checkbox for keeping current version
         required: true
         default: false  # False by default
         type: boolean
@@ -38,7 +53,7 @@ jobs:
       with:
         repository: git-hub-amla/nugetsourceamla
         token: ${{ secrets.ACCESS_TOKEN }}
-        path: version_repo
+        path: version_repo  # Store in a separate folder to avoid conflicts
 
     # Step 3: Setup .NET environment
     - name: Setup .NET
@@ -50,26 +65,31 @@ jobs:
     - name: Read and Increment Versions
       id: increment_versions
       run: |
-        version1=$(jq -r '.Library1.version // "1.0.0"' version_repo/version.json)
-        version2=$(jq -r '.Library2.version // "1.0.0"' version_repo/version.json)
-        version3=$(jq -r '.Library3.version // "1.0.0"' version_repo/version.json)
+        version1=$(jq -r '.Library1.version' version_repo/version.json)
+        version2=$(jq -r '.Library2.version' version_repo/version.json)
+        version3=$(jq -r '.Library3.version' version_repo/version.json)
 
-        # Increment patch version for Library1 if selected
-        if [ "${{ github.event.inputs.build_library1 }}" == 'true' ]; then
+        # Initialize new version variables
+        new_version1=$version1
+        new_version2=$version2
+        new_version3=$version3
+
+        # Increment patch version for Library1 if selected and keep_current_version1 is false
+        if [ "${{ github.event.inputs.build_library1 }}" == 'true' ] && [ "${{ github.event.inputs.keep_current_version1 }}" == 'false' ]; then
           IFS='.' read -ra ADDR <<< "$version1"
           patch=$((ADDR[2] + 1))
           new_version1="${ADDR[0]}.${ADDR[1]}.$patch"
         fi
 
-        # Increment patch version for Library2 if selected
-        if [ "${{ github.event.inputs.build_library2 }}" == 'true' ]; then
+        # Increment patch version for Library2 if selected and keep_current_version2 is false
+        if [ "${{ github.event.inputs.build_library2 }}" == 'true' ] && [ "${{ github.event.inputs.keep_current_version2 }}" == 'false' ]; then
           IFS='.' read -ra ADDR <<< "$version2"
           patch=$((ADDR[2] + 1))
           new_version2="${ADDR[0]}.${ADDR[1]}.$patch"
         fi
 
-        # Increment patch version for Library3 if selected
-        if [ "${{ github.event.inputs.build_library3 }}" == 'true' ]; then
+        # Increment patch version for Library3 if selected and keep_current_version3 is false
+        if [ "${{ github.event.inputs.build_library3 }}" == 'true' ] && [ "${{ github.event.inputs.keep_current_version3 }}" == 'false' ]; then
           IFS='.' read -ra ADDR <<< "$version3"
           patch=$((ADDR[2] + 1))
           new_version3="${ADDR[0]}.${ADDR[1]}.$patch"
