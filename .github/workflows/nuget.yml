@@ -5,36 +5,36 @@ on:
     inputs:
       # Library 1
       build_library1:
-        description: '### Library 1  \nBuild Library1? (Check to build)'
+        description: 'Build Library 1?'
         required: true
         default: false  # False by default
         type: boolean
       version1:
-        description: 'Version for Library1 (Leave empty for auto-increment)'
+        description: 'Version for Library 1 (optional, auto-increment if empty)'
         required: false
         default: ''
         type: string
 
       # Library 2
       build_library2:
-        description: '### Library 2  \nBuild Library2? (Check to build)'
+        description: 'Build Library 2?'
         required: true
         default: false  # False by default
         type: boolean
       version2:
-        description: 'Version for Library2 (Leave empty for auto-increment)'
+        description: 'Version for Library 2 (optional, auto-increment if empty)'
         required: false
         default: ''
         type: string
 
       # Library 3
       build_library3:
-        description: '### Library 3  \nBuild Library3? (Check to build)'
+        description: 'Build Library 3?'
         required: true
         default: false  # False by default
         type: boolean
       version3:
-        description: 'Version for Library3 (Leave empty for auto-increment)'
+        description: 'Version for Library 3 (optional, auto-increment if empty)'
         required: false
         default: ''
         type: string
