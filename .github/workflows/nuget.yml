@@ -61,6 +61,7 @@ jobs:
     - name: Checkout the project repository
       uses: actions/checkout@v2
       with:
+        path: project  # Ensures the repo is cloned in the "project" folder
         token: ${{ secrets.ACCESS_TOKEN }}
 
     - name: Setup .NET
