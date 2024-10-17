@@ -82,13 +82,15 @@ jobs:
           echo "Version file is: $version_file"
           echo "::set-output name=version_file::$version_file"
 
-      - name: Read and Determine Versions
+            - name: Read and Determine Versions
         id: determine_versions
         run: |
           version_file="${{ steps.determine_version_file.outputs.version_file }}"
-          version1=$(jq -r '.Library1.version' "$version_file")
-          version2=$(jq -r '.Library2.version' "$version_file")
-          version3=$(jq -r '.Library3.version' "$version_file")
+          
+          # Read versions from the version file, defaulting to "1.0.0" if not found
+          version1=$(jq -r '.Library1.version // "1.0.0"' "$version_file")
+          version2=$(jq -r '.Library2.version // "1.0.0"' "$version_file")
+          version3=$(jq -r '.Library3.version // "1.0.0"' "$version_file")
 
           # Initialize new version variables
           new_version1="${{ github.event.inputs.version_library1 }}"
@@ -98,39 +100,33 @@ jobs:
           # Increment version if not provided for Library1
           if [ "${{ github.event.inputs.build_library1 }}" == 'true' ]; then
             if [ -z "${{ github.event.inputs.version_library1 }}" ]; then
-              if [ -z "$version1" ]; then
-                new_version1="1.0.0"
-              else
-                IFS='.' read -ra ADDR <<< "$version1"
-                patch=$((ADDR[2] + 1))
-                new_version1="${ADDR[0]}.${ADDR[1]}.$patch"
-              fi
+              IFS='.' read -ra ADDR <<< "$version1"
+              patch=$((ADDR[2] + 1))
+              new_version1="${ADDR[0]}.${ADDR[1]}.$patch"
+            else
+              new_version1="${{ github.event.inputs.version_library1 }}"
             fi
           fi
 
           # Increment version if not provided for Library2
           if [ "${{ github.event.inputs.build_library2 }}" == 'true' ]; then
             if [ -z "${{ github.event.inputs.version_library2 }}" ]; then
-              if [ -z "$version2" ]; then
-                new_version2="1.0.0"
-              else
-                IFS='.' read -ra ADDR <<< "$version2"
-                patch=$((ADDR[2] + 1))
-                new_version2="${ADDR[0]}.${ADDR[1]}.$patch"
-              fi
+              IFS='.' read -ra ADDR <<< "$version2"
+              patch=$((ADDR[2] + 1))
+              new_version2="${ADDR[0]}.${ADDR[1]}.$patch"
+            else
+              new_version2="${{ github.event.inputs.version_library2 }}"
             fi
           fi
 
           # Increment version if not provided for Library3
           if [ "${{ github.event.inputs.build_library3 }}" == 'true' ]; then
             if [ -z "${{ github.event.inputs.version_library3 }}" ]; then
-              if [ -z "$version3" ]; then
-                new_version3="1.0.0"
-              else
-                IFS='.' read -ra ADDR <<< "$version3"
-                patch=$((ADDR[2] + 1))
-                new_version3="${ADDR[0]}.${ADDR[1]}.$patch"
-              fi
+              IFS='.' read -ra ADDR <<< "$version3"
+              patch=$((ADDR[2] + 1))
+              new_version3="${ADDR[0]}.${ADDR[1]}.$patch"
+            else
+              new_version3="${{ github.event.inputs.version_library3 }}"
             fi
           fi
 
