@@ -4,32 +4,34 @@ on:
   workflow_dispatch:  # Enables manual triggering with inputs
     inputs:
       build_library1:
-        description: 'Build Library1?'  # Checkbox for Library1
+        description: 'Build Library1? (Check to build)  \nKeep current version? (Check to skip version update)'
         required: true
         default: false  # False by default
         type: boolean
-      keep_version_library1:
-        description: 'Keep current version for Library1?'  # Checkbox to keep current version
+      keep_version1:
+        description: 'Keep current version for Library1?'
         required: true
         default: false
         type: boolean
+
       build_library2:
-        description: 'Build Library2?'  # Checkbox for Library2
+        description: 'Build Library2? (Check to build)  \nKeep current version? (Check to skip version update)'
         required: true
         default: false  # False by default
         type: boolean
-      keep_version_library2:
-        description: 'Keep current version for Library2?'  # Checkbox to keep current version
+      keep_version2:
+        description: 'Keep current version for Library2?'
         required: true
         default: false
         type: boolean
+
       build_library3:
-        description: 'Build Library3?'  # Checkbox for Library3
+        description: 'Build Library3? (Check to build)  \nKeep current version? (Check to skip version update)'
         required: true
         default: false  # False by default
         type: boolean
-      keep_version_library3:
-        description: 'Keep current version for Library3?'  # Checkbox to keep current version
+      keep_version3:
+        description: 'Keep current version for Library3?'
         required: true
         default: false
         type: boolean
@@ -43,23 +45,23 @@ jobs:
     - name: Checkout the project repository
       uses: actions/checkout@v2
       with:
-        repository: git-hub-amla/projectamla  # Replace with your repo name if different
-        token: ${{ secrets.ACCESS_TOKEN }}     # Using a secret for secure authentication
-        path: project                         # Clone the repo into a folder named "project"
+        repository: git-hub-amla/projectamla
+        token: ${{ secrets.ACCESS_TOKEN }}
+        path: project
 
     # Step 2: Checkout the version.json from nugetsourceamla repository
     - name: Checkout the version.json from nugetsourceamla repository
       uses: actions/checkout@v2
       with:
-        repository: git-hub-amla/nugetsourceamla  # Clone the version.json from this repo
+        repository: git-hub-amla/nugetsourceamla
         token: ${{ secrets.ACCESS_TOKEN }}
-        path: version_repo  # Store in a separate folder to avoid conflicts
+        path: version_repo
 
     # Step 3: Setup .NET environment
     - name: Setup .NET
       uses: actions/setup-dotnet@v2
       with:
-        dotnet-version: '7.0'  # Adjust according to your .NET version
+        dotnet-version: '7.0'
 
     # Step 4: Read the current version from version.json and increment the patch number
     - name: Read and Increment Versions
@@ -69,31 +71,25 @@ jobs:
         version2=$(jq -r '.Library2.version' version_repo/version.json)
         version3=$(jq -r '.Library3.version' version_repo/version.json)
 
-        # Increment patch version for Library1 if selected and not keeping the current version
-        if [ "${{ github.event.inputs.build_library1 }}" == 'true' ] && [ "${{ github.event.inputs.keep_version_library1 }}" == 'false' ]; then
+        # Increment patch version for Library1 if selected and not keeping current version
+        if [ "${{ github.event.inputs.build_library1 }}" == 'true' ] && [ "${{ github.event.inputs.keep_version1 }}" == 'false' ]; then
           IFS='.' read -ra ADDR <<< "$version1"
           patch=$((ADDR[2] + 1))
           new_version1="${ADDR[0]}.${ADDR[1]}.$patch"
-        else
-          new_version1="$version1"  # Keep current version
         fi
 
-        # Increment patch version for Library2 if selected and not keeping the current version
-        if [ "${{ github.event.inputs.build_library2 }}" == 'true' ] && [ "${{ github.event.inputs.keep_version_library2 }}" == 'false' ]; then
+        # Increment patch version for Library2 if selected and not keeping current version
+        if [ "${{ github.event.inputs.build_library2 }}" == 'true' ] && [ "${{ github.event.inputs.keep_version2 }}" == 'false' ]; then
           IFS='.' read -ra ADDR <<< "$version2"
           patch=$((ADDR[2] + 1))
           new_version2="${ADDR[0]}.${ADDR[1]}.$patch"
-        else
-          new_version2="$version2"  # Keep current version
         fi
 
-        # Increment patch version for Library3 if selected and not keeping the current version
-        if [ "${{ github.event.inputs.build_library3 }}" == 'true' ] && [ "${{ github.event.inputs.keep_version_library3 }}" == 'false' ]; then
+        # Increment patch version for Library3 if selected and not keeping current version
+        if [ "${{ github.event.inputs.build_library3 }}" == 'true' ] && [ "${{ github.event.inputs.keep_version3 }}" == 'false' ]; then
           IFS='.' read -ra ADDR <<< "$version3"
           patch=$((ADDR[2] + 1))
           new_version3="${ADDR[0]}.${ADDR[1]}.$patch"
-        else
-          new_version3="$version3"  # Keep current version
         fi
 
         # Output the incremented versions for all libraries
@@ -143,7 +139,7 @@ jobs:
     # Step 6: Publish the NuGet package to GitHub Packages in 'nugetsourceamla' repository
     - name: Publish NuGet Package
       env:
-        GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}  # Personal access token or GitHub token
+        GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
       run: |
         dotnet nuget push ./nupkgs/*.nupkg \
           --source "https://nuget.pkg.github.com/git-hub-amla/index.json" \
@@ -159,15 +155,21 @@ jobs:
 
         # Update version.json with the new version and history
         if [ "${{ github.event.inputs.build_library1 }}" == 'true' ]; then
-          jq ".Library1.version = \"$new_version1\" | .Library1.history += [{\"version\": \"$new_version1\", \"date\": \"$timestamp\"}] | .Library1.history |= . | if length > 5 then .[length - 5:] else . end" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
+          if [ "${{ github.event.inputs.keep_version1 }}" == 'false' ]; then
+            jq ".Library1.version = \"${{ steps.increment_versions.outputs.new_version1 }}\" | .Library1.history += [{\"version\": \"${{ steps.increment_versions.outputs.new_version1 }}\", \"date\": \"$timestamp\"}]" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
+          fi
         fi
 
         if [ "${{ github.event.inputs.build_library2 }}" == 'true' ]; then
-          jq ".Library2.version = \"$new_version2\" | .Library2.history += [{\"version\": \"$new_version2\", \"date\": \"$timestamp\"}] | .Library2.history |= . | if length > 5 then .[length - 5:] else . end" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
+          if [ "${{ github.event.inputs.keep_version2 }}" == 'false' ]; then
+            jq ".Library2.version = \"${{ steps.increment_versions.outputs.new_version2 }}\" | .Library2.history += [{\"version\": \"${{ steps.increment_versions.outputs.new_version2 }}\", \"date\": \"$timestamp\"}]" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
+          fi
         fi
 
         if [ "${{ github.event.inputs.build_library3 }}" == 'true' ]; then
-          jq ".Library3.version = \"$new_version3\" | .Library3.history += [{\"version\": \"$new_version3\", \"date\": \"$timestamp\"}] | .Library3.history |= . | if length > 5 then .[length - 5:] else . end" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
+          if [ "${{ github.event.inputs.keep_version3 }}" == 'false' ]; then
+            jq ".Library3.version = \"${{ steps.increment_versions.outputs.new_version3 }}\" | .Library3.history += [{\"version\": \"${{ steps.increment_versions.outputs.new_version3 }}\", \"date\": \"$timestamp\"}]" version_repo/version.json > tmp.json && mv tmp.json version_repo/version.json
+          fi
         fi
 
         # Commit and push the updated version.json file
@@ -175,3 +177,5 @@ jobs:
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
         git add version.json
+        git commit -m "Update version.json after build"
+        git push
