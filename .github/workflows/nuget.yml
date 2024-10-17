@@ -65,6 +65,9 @@ jobs:
         branch_name="${{ github.event.inputs.branch }}"
         version_file="version.${branch_name}.json"
 
+        # Create version_repo directory if it doesn't exist
+        mkdir -p version_repo
+
         # Check if the version file exists, create if it doesn't
         if [ ! -f version_repo/$version_file ]; then
           echo "{}" > version_repo/$version_file
