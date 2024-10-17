@@ -102,43 +102,34 @@ jobs:
         version2=$(jq -r ".\"$branch\".Library2.version" "$version_file")
         version3=$(jq -r ".\"$branch\".Library3.version" "$version_file")
 
-        # Increment version if not provided for Library1
+        # Function to determine the new version, defaults to "1.0.0" if not set
+        determine_new_version() {
+          local current_version=$1
+          local provided_version=$2
+          
+          # Use provided version or calculate new version
+          if [ -n "$provided_version" ]; then
+            echo "$provided_version"
+          elif [ -z "$current_version" ] || [ "$current_version" == "null" ]; then
+            echo "1.0.0"
+          else
+            IFS='.' read -ra ADDR <<< "$current_version"
+            patch=$((ADDR[2] + 1))
+            echo "${ADDR[0]}.${ADDR[1]}.$patch"
+          fi
+        }
+
+        # Determine new versions for each library
         if [ "${{ github.event.inputs.build_library1 }}" == 'true' ]; then
-          if [ -z "${{ github.event.inputs.version_library1 }}" ]; then
-            if [ -z "$version1" ]; then
-              new_version1="1.0.0"
-            else
-              IFS='.' read -ra ADDR <<< "$version1"
-              patch=$((ADDR[2] + 1))
-              new_version1="${ADDR[0]}.${ADDR[1]}.$patch"
-            fi
-          fi
+          new_version1=$(determine_new_version "$version1" "$new_version1")
         fi
 
-        # Increment version if not provided for Library2
         if [ "${{ github.event.inputs.build_library2 }}" == 'true' ]; then
-          if [ -z "${{ github.event.inputs.version_library2 }}" ]; then
-            if [ -z "$version2" ]; then
-              new_version2="1.0.0"
-            else
-              IFS='.' read -ra ADDR <<< "$version2"
-              patch=$((ADDR[2] + 1))
-              new_version2="${ADDR[0]}.${ADDR[1]}.$patch"
-            fi
-          fi
+          new_version2=$(determine_new_version "$version2" "$new_version2")
         fi
 
-        # Increment version if not provided for Library3
         if [ "${{ github.event.inputs.build_library3 }}" == 'true' ]; then
-          if [ -z "${{ github.event.inputs.version_library3 }}" ]; then
-            if [ -z "$version3" ]; then
-              new_version3="1.0.0"
-            else
-              IFS='.' read -ra ADDR <<< "$version3"
-              patch=$((ADDR[2] + 1))
-              new_version3="${ADDR[0]}.${ADDR[1]}.$patch"
-            fi
-          fi
+          new_version3=$(determine_new_version "$version3" "$new_version3")
         fi
 
         # Output the determined versions for all libraries
