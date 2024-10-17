@@ -3,22 +3,10 @@ name: Build and Package NuGet
 on:
   workflow_dispatch:
     inputs:
-      current_version:
-        description: 'Current version (Read-only)'
-        required: false
-        default: ''  # This will be set dynamically by the workflow
-      last_build_date:
-        description: 'Date of the last build (Read-only)'
-        required: false
-        default: ''  # This will be set dynamically by the workflow
-      last_build_version:
-        description: 'Version of the last build (Read-only)'
-        required: false
-        default: ''  # This will be set dynamically by the workflow
       next_version:
         description: 'Next version (Editable)'
         required: true
-        default: '1.0.1'  # Default to 1.0.1 but will be dynamically set based on history
+        default: '1.0.1'  # Default to 1.0.1 but dynamically set inside the workflow
 
 jobs:
   recommend_version:
