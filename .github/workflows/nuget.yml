@@ -73,7 +73,11 @@ jobs:
         token: ${{ secrets.ACCESS_TOKEN }}
         path: version_repo
 
-    # Step 3: Determine the branch and set the version file
+    # Step 3: Change to the version_repo directory
+    - name: Change directory to version_repo
+      run: cd version_repo
+
+    # Step 4: Determine the branch and set the version file
     - name: Determine version file based on branch
       id: determine_version_file
       run: |
@@ -96,13 +100,13 @@ jobs:
         echo "Version file: $version_file"
         echo "::set-output name=version_file::$version_file"
 
-    # Step 4: Setup .NET environment
+    # Step 5: Setup .NET environment
     - name: Setup .NET
       uses: actions/setup-dotnet@v2
       with:
         dotnet-version: '7.0'
 
-    # Step 5: Read the current version from version file and handle versioning logic
+    # Step 6: Read the current version from version file and handle versioning logic
     - name: Read and Determine Versions
       id: determine_versions
       run: |
@@ -143,7 +147,7 @@ jobs:
         # Increment version if not provided for Library3
         if [ "${{ github.event.inputs.build_library3 }}" == 'true' ]; then
           if [ -z "${{ github.event.inputs.version_library3 }}" ]; then
-            IFS='.' read -ra ADDR <<< "$version3"
+            IFS='.' read -ra ADDR <<< "$version3
             patch=$((ADDR[2] + 1))
             new_version3="${ADDR[0]}.${ADDR[1]}.$patch"
           else
@@ -195,19 +199,13 @@ jobs:
         # Pack Library3 with the determined version
         dotnet pack project/NugetApplication/ClassLibrary3/ClassLibrary3.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.determine_versions.outputs.new_version3 }}
 
-    # Step 6: Publish the NuGet package to GitHub Packages in 'nugetsourceamla' repository
-    - name: Publish NuGet Package
-      env:
-        GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+    # Step 7: Publish the NuGet package to GitHub Packages in 'nugetsourceamla'
+    - name: Publish NuGet Packages
       run: |
-        dotnet nuget push ./nupkgs/*.nupkg \
-          --source "https://nuget.pkg.github.com/git-hub-amla/index.json" \
-          --api-key $GITHUB_TOKEN \
-          --skip-duplicate
+        dotnet nuget push ./nupkgs/*.nupkg --source "github" --api-key ${{ secrets.GITHUB_TOKEN }}
 
-    # Step 7: Update version.json with the new versions and add to history
-    - name: Update version.json
-      if: github.event.inputs.build_library1 == 'true' || github.event.inputs.build_library2 == 'true' || github.event.inputs.build_library3 == 'true'
+    # Step 8: Update the version file with new versioning information
+    - name: Update Version File
       run: |
         # Get current date and time
         timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
