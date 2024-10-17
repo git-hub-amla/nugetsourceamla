@@ -23,30 +23,30 @@ jobs:
     - name: Checkout the project repository
       uses: actions/checkout@v2
       with:
-        repository: git-hub-amla/projectamla  # Replace with your repo name if different
-        token: ${{ secrets.ACCESS_TOKEN }}     # Using a secret for secure authentication
-        path: project                         # Clone the repo into a folder named "project"
+        repository: git-hub-amla/projectamla
+        token: ${{ secrets.ACCESS_TOKEN }}
+        path: project
 
     # Step 2: Checkout the version.json from nugetsourceamla repository
     - name: Checkout the version.json from nugetsourceamla repository
       uses: actions/checkout@v2
       with:
-        repository: git-hub-amla/nugetsourceamla  # Clone the version.json from this repo
+        repository: git-hub-amla/nugetsourceamla
         token: ${{ secrets.ACCESS_TOKEN }}
-        path: version_repo  # Store in a separate folder to avoid conflicts
+        path: version_repo
 
     # Step 3: Setup .NET environment
     - name: Setup .NET
       uses: actions/setup-dotnet@v2
       with:
-        dotnet-version: '7.0'  # Adjust according to your .NET version
+        dotnet-version: '7.0'
 
     # Step 4: Read the current version from version.json and increment the patch number
     - name: Read and Increment Versions
       id: increment_versions
       run: |
-        version1=$(jq -r '.Library1.version' version_repo/version.json)
-        version2=$(jq -r '.Library2.version' version_repo/version.json)
+        version1=$(jq -r '.Library1.version // "1.0.0"' version_repo/version.json)
+        version2=$(jq -r '.Library2.version // "1.0.0"' version_repo/version.json)
 
         # Increment patch version for Library1 if selected
         if [ "${{ github.event.inputs.build_library1 }}" == 'true' ]; then
@@ -95,7 +95,7 @@ jobs:
     # Step 6: Publish the NuGet package to GitHub Packages in 'nugetsourceamla' repository
     - name: Publish NuGet Package
       env:
-        GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}  # Personal access token or GitHub token
+        GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
       run: |
         dotnet nuget push ./nupkgs/*.nupkg \
           --source "https://nuget.pkg.github.com/git-hub-amla/index.json" \
