@@ -1,3 +1,16 @@
 {
-  "version": "1.0.2"
+  "Library1": {
+    "version": "1.0.3",
+    "history": [
+      {"version": "1.0.2", "date": "2024-10-18T12:34:56Z"},
+      {"version": "1.0.3", "date": "2024-10-18T14:00:00Z"}
+    ]
+  },
+  "Library2": {
+    "version": "1.0.3",
+    "history": [
+      {"version": "1.0.1", "date": "2024-10-18T11:00:00Z"},
+      {"version": "1.0.3", "date": "2024-10-18T14:00:00Z"}
+    ]
+  }
 }
