@@ -8,16 +8,34 @@ on:
         required: true
         default: false
         type: boolean
+      library1_version:
+        description: 'Library1 Version (leave blank to auto-increment)'
+        required: false
+        default: ''
+        type: string
+
       build_library2:
         description: 'Build Library2'
         required: true
         default: false
         type: boolean
+      library2_version:
+        description: 'Library2 Version (leave blank to auto-increment)'
+        required: false
+        default: ''
+        type: string
+
       build_library3:
         description: 'Build Library3'
         required: true
         default: false
         type: boolean
+      library3_version:
+        description: 'Library3 Version (leave blank to auto-increment)'
+        required: false
+        default: ''
+        type: string
+
       branch:
         description: 'Branch Name'
         required: false
@@ -51,7 +69,7 @@ jobs:
       with:
         dotnet-version: '7.0'
 
-    # Step 4: Read the current version from version.json and increment the patch number
+    # Step 4: Read the current version from version.json and increment the patch number (if no version is provided)
     - name: Read and Increment Versions
       id: increment_versions
       run: |
@@ -60,28 +78,34 @@ jobs:
         version2=$(jq -r ".\"$branch\".Library2.version // \"1.0.0\"" version_repo/version.json)
         version3=$(jq -r ".\"$branch\".Library3.version // \"1.0.0\"" version_repo/version.json)
 
-        # Increment patch version for Library1 if selected
-        if [ "${{ github.event.inputs.build_library1 }}" == 'true' ]; then
+        # Use provided version for Library1 if present, else increment patch
+        if [ -n "${{ github.event.inputs.library1_version }}" ]; then
+          new_version1="${{ github.event.inputs.library1_version }}"
+        elif [ "${{ github.event.inputs.build_library1 }}" == 'true' ]; then
           IFS='.' read -ra ADDR <<< "$version1"
           patch=$((ADDR[2] + 1))
           new_version1="${ADDR[0]}.${ADDR[1]}.$patch"
         fi
 
-        # Increment patch version for Library2 if selected
-        if [ "${{ github.event.inputs.build_library2 }}" == 'true' ]; then
+        # Use provided version for Library2 if present, else increment patch
+        if [ -n "${{ github.event.inputs.library2_version }}" ]; then
+          new_version2="${{ github.event.inputs.library2_version }}"
+        elif [ "${{ github.event.inputs.build_library2 }}" == 'true' ]; then
           IFS='.' read -ra ADDR <<< "$version2"
           patch=$((ADDR[2] + 1))
           new_version2="${ADDR[0]}.${ADDR[1]}.$patch"
         fi
 
-        # Increment patch version for Library3 if selected
-        if [ "${{ github.event.inputs.build_library3 }}" == 'true' ]; then
+        # Use provided version for Library3 if present, else increment patch
+        if [ -n "${{ github.event.inputs.library3_version }}" ]; then
+          new_version3="${{ github.event.inputs.library3_version }}"
+        elif [ "${{ github.event.inputs.build_library3 }}" == 'true' ]; then
           IFS='.' read -ra ADDR <<< "$version3"
           patch=$((ADDR[2] + 1))
           new_version3="${ADDR[0]}.${ADDR[1]}.$patch"
         fi
 
-        # Output the incremented versions for all libraries
+        # Output the versions for each library
         echo "::set-output name=new_version1::$new_version1"
         echo "::set-output name=new_version2::$new_version2"
         echo "::set-output name=new_version3::$new_version3"
