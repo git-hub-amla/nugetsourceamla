@@ -1,7 +1,7 @@
 {
   "dev": {
     "Library1": {
-      "version": "1.0.0-alpha",
+      "version": "2.1.2",
       "history": [
         {
           "version": "1.0.1",
@@ -50,6 +50,10 @@
         {
           "version": "1.0.0-alpha",
           "date": "2024-10-18T07:14:24Z"
+        },
+        {
+          "version": "2.1.2",
+          "date": "2024-10-18T07:20:11Z"
         }
       ]
     },
@@ -63,6 +67,15 @@
         {
           "version": "1.0.2",
           "date": "2024-10-17T21:22:11Z"
+        }
+      ]
+    },
+    "Library2": {
+      "version": "4.5.2",
+      "history": [
+        {
+          "version": "4.5.2",
+          "date": "2024-10-18T07:20:11Z"
         }
       ]
     }
