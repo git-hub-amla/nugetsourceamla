@@ -4,32 +4,32 @@ on:
   workflow_dispatch:  # Enables manual triggering with inputs
     inputs:
       build_library1:
-        description: 'Build Library1?'  # Checkbox for Library1
+        description: 'Build Library1'  # Checkbox for Library1
         required: true
         default: false  # False by default
         type: boolean
       library1_version:
-        description: 'Version for Library1 (leave blank for auto-increment)'
+        description: 'Version for Library1'
         required: false
         default: ''  # No default value
         type: string
       build_library2:
-        description: 'Build Library2?'  # Checkbox for Library2
+        description: 'Build Library2'  # Checkbox for Library2
         required: true
         default: false  # False by default
         type: boolean
       library2_version:
-        description: 'Version for Library2 (leave blank for auto-increment)'
+        description: 'Version for Library2'
         required: false
         default: ''  # No default value
         type: string
       build_library3:
-        description: 'Build Library3?'  # Checkbox for Library3
+        description: 'Build Library3'  # Checkbox for Library3
         required: true
         default: false  # False by default
         type: boolean
       library3_version:
-        description: 'Version for Library3 (leave blank for auto-increment)'
+        description: 'Version for Library3'
         required: false
         default: ''  # No default value
         type: string
