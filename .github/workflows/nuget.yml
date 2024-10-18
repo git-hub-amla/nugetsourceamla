@@ -9,7 +9,7 @@ on:
         default: false
         type: boolean
       library1_version:
-        description: 'Library1 Version (leave blank to auto-increment)'
+        description: 'Library1 Version'
         required: false
         default: ''
         type: string
@@ -20,7 +20,7 @@ on:
         default: false
         type: boolean
       library2_version:
-        description: 'Library2 Version (leave blank to auto-increment)'
+        description: 'Library2 Version'
         required: false
         default: ''
         type: string
@@ -31,7 +31,7 @@ on:
         default: false
         type: boolean
       library3_version:
-        description: 'Library3 Version (leave blank to auto-increment)'
+        description: 'Library3 Version'
         required: false
         default: ''
         type: string
