@@ -134,29 +134,27 @@ jobs:
         dotnet build project/NugetApplication/ClassLibrary3/ClassLibrary3.csproj --configuration Release
         dotnet pack project/NugetApplication/ClassLibrary3/ClassLibrary3.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.increment_versions.outputs.new_version3 }}
 
-    # Step 8: Publish the NuGet package to branch-specific server
-    - name: Publish NuGet Package to Branch-Specific Server
+    # Step 6: Publish the NuGet package to the appropriate GitHub Packages server
+    - name: Publish NuGet Package
       env:
         GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
       run: |
-        branch="${{ github.event.inputs.branch }}"
-        
-        # Set nuget_server based on branch
-        if [ "$branch" == "qa" ]; then
-          nuget_server="https://nuget.pkg.github.com/git-hub-amla/qa/index.json"
+        # Define the NuGet source based on the branch
+        if [ "${{ github.event.inputs.branch }}" == "dev" ]; then
+          NUGET_SOURCE="https://nuget.pkg.github.com/git-hub-amla/nugetsourceamla/index.json"
+        elif [ "${{ github.event.inputs.branch }}" == "qa" ]; then
+          NUGET_SOURCE="https://nuget.pkg.github.com/git-hub-amla/nugetsourceamlaqa/index.json"
         else
-          nuget_server="https://nuget.pkg.github.com/git-hub-amla/dev/index.json"
+          echo "Unsupported branch. No packages will be published."
+          exit 1
         fi
 
-        # Print the nuget_server for debugging
-        echo "Publishing to: $nuget_server"
-
         dotnet nuget push ./nupkgs/*.nupkg \
-          --source "$nuget_server" \
+          --source "$NUGET_SOURCE" \
           --api-key $GITHUB_TOKEN \
           --skip-duplicate
 
-    # Step 9: Update version.json with the new versions and add to history
+    # Step 7: Update version.json with the new versions and add to history
     - name: Update version.json
       if: github.event.inputs.build_library1 == 'true' || github.event.inputs.build_library2 == 'true' || github.event.inputs.build_library3 == 'true'
       run: |
