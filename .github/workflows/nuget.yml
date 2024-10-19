@@ -74,7 +74,6 @@ jobs:
       id: increment_versions
       run: |
         branch="${{ github.event.inputs.branch }}"
-
         version1=$(jq -r ".\"$branch\".Library1.version // \"1.0.0\"" version_repo/version.json)
         version2=$(jq -r ".\"$branch\".Library2.version // \"1.0.0\"" version_repo/version.json)
         version3=$(jq -r ".\"$branch\".Library3.version // \"1.0.0\"" version_repo/version.json)
