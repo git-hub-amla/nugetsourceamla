@@ -74,6 +74,7 @@ jobs:
       id: increment_versions
       run: |
         branch="${{ github.event.inputs.branch }}"
+
         version1=$(jq -r ".\"$branch\".Library1.version // \"1.0.0\"" version_repo/version.json)
         version2=$(jq -r ".\"$branch\".Library2.version // \"1.0.0\"" version_repo/version.json)
         version3=$(jq -r ".\"$branch\".Library3.version // \"1.0.0\"" version_repo/version.json)
@@ -110,9 +111,7 @@ jobs:
         echo "::set-output name=new_version2::$new_version2"
         echo "::set-output name=new_version3::$new_version3"
 
-    # Step 5: Restore, build, and pack libraries conditionally
-
-    # Conditional Step: Library1
+    # Conditional Step: Restore, build, and pack Library1 if selected
     - name: Build and Package Library1
       if: github.event.inputs.build_library1 == 'true'
       run: |
@@ -120,7 +119,7 @@ jobs:
         dotnet build project/NugetApplication/Library1/Library1.csproj --configuration Release
         dotnet pack project/NugetApplication/Library1/Library1.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.increment_versions.outputs.new_version1 }}
 
-    # Conditional Step: Library2
+    # Conditional Step: Restore, build, and pack Library2 if selected
     - name: Build and Package Library2
       if: github.event.inputs.build_library2 == 'true'
       run: |
@@ -128,7 +127,7 @@ jobs:
         dotnet build project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release
         dotnet pack project/NugetApplication/ClassLibrary2/ClassLibrary2.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.increment_versions.outputs.new_version2 }}
 
-    # Conditional Step: Library3
+    # Conditional Step: Restore, build, and pack Library3 if selected
     - name: Build and Package Library3
       if: github.event.inputs.build_library3 == 'true'
       run: |
@@ -136,21 +135,25 @@ jobs:
         dotnet build project/NugetApplication/ClassLibrary3/ClassLibrary3.csproj --configuration Release
         dotnet pack project/NugetApplication/ClassLibrary3/ClassLibrary3.csproj --configuration Release --output ./nupkgs /p:PackageVersion=${{ steps.increment_versions.outputs.new_version3 }}
 
-    # Step 6: Log generated package files
-    - name: Log generated package files
-      run: ls ./nupkgs
-
-    # Step 7: Publish the NuGet package to GitHub Packages
-    - name: Publish NuGet Packages
+    # Step 8: Publish the NuGet package to branch-specific server
+    - name: Publish NuGet Package to Branch-Specific Server
       env:
         GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
       run: |
+        branch="${{ github.event.inputs.branch }}"
+        
+        if [ "$branch" == "qa" ]; then
+          nuget_server="https://nuget.pkg.github.com/git-hub-amla/qa/index.json"
+        else
+          nuget_server="https://nuget.pkg.github.com/git-hub-amla/dev/index.json"
+        fi
+
         dotnet nuget push ./nupkgs/*.nupkg \
-          --source "https://nuget.pkg.github.com/git-hub-amla/index.json" \
+          --source "$nuget_server" \
           --api-key $GITHUB_TOKEN \
           --skip-duplicate
 
-    # Step 8: Update version.json with the new versions
+    # Step 9: Update version.json with the new versions and add to history
     - name: Update version.json
       if: github.event.inputs.build_library1 == 'true' || github.event.inputs.build_library2 == 'true' || github.event.inputs.build_library3 == 'true'
       run: |
