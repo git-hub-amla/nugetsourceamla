@@ -142,11 +142,15 @@ jobs:
       run: |
         branch="${{ github.event.inputs.branch }}"
         
+        # Set nuget_server based on branch
         if [ "$branch" == "qa" ]; then
           nuget_server="https://nuget.pkg.github.com/git-hub-amla/qa/index.json"
         else
           nuget_server="https://nuget.pkg.github.com/git-hub-amla/dev/index.json"
         fi
+
+        # Print the nuget_server for debugging
+        echo "Publishing to: $nuget_server"
 
         dotnet nuget push ./nupkgs/*.nupkg \
           --source "$nuget_server" \
