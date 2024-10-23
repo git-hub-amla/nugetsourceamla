@@ -26,16 +26,28 @@ jobs:
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: '8.0.x'
-
+    
     - name: Create new C# library
       run: |
         PROJECT_NAME="znode.${{ github.event.inputs.project }}.client.${{ github.event.inputs.version }}"
         mkdir $PROJECT_NAME
         cd $PROJECT_NAME
         dotnet new classlib --name $PROJECT_NAME --output .
-        echo "namespace ${PROJECT_NAME} { public class MathClass { public int Sum(int a, int b) { return a + b; } } }" > MathClass.cs
+        # Create MathClass.cs with correct formatting
+        echo "namespace ${PROJECT_NAME}" > MathClass.cs
+        echo "{" >> MathClass.cs
+        echo "    public class MathClass" >> MathClass.cs
+        echo "    {" >> MathClass.cs
+        echo "        public int Sum(int a, int b)" >> MathClass.cs
+        echo "        {" >> MathClass.cs
+        echo "            return a + b;" >> MathClass.cs
+        echo "        }" >> MathClass.cs
+        echo "    }" >> MathClass.cs
+        echo "}" >> MathClass.cs
+        # Remove the default Class1.cs file
         rm Class1.cs
         ls -la
+
 
 
     - name: Add Newtonsoft.Json package
