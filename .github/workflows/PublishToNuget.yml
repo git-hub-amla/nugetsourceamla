@@ -75,4 +75,4 @@ jobs:
         PROJECT_NAME="znode.${{ github.event.inputs.project }}.client.${{ github.event.inputs.version }}"
         PACKAGE_FILE=$(find ./$PROJECT_NAME/bin/Release -name "*.nupkg")
         echo "Pushing package: $PACKAGE_FILE"
-        dotnet nuget push "$PACKAGE_FILE" --source "https://nuget.pkg.github.com/git-hub-amla/nugetsourceamla/index.json" --api-key "${{ secrets.NUGET_API_KEY }}"
+        dotnet nuget push "$PACKAGE_FILE" --source "https://nuget.pkg.github.com/git-hub-amla/index.json" --api-key "${{ secrets.NUGET_API_KEY }}"
