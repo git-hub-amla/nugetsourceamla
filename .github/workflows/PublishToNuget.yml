@@ -6,16 +6,16 @@ on:
       version:
         description: 'Version name for the new library'
         required: true
-        default: '1.0.0'
+        default: 'V1'  # Updated default value
       project:
         description: 'Select the project name'
         required: true
         type: choice
         options:
-          - customtable
-          - v2
-          - commerceportal
-          - payment
+          - CustomTable  # Updated options
+          - Payment
+          - V2
+          - CommercePortal
 
 jobs:
   create-publish-library:
