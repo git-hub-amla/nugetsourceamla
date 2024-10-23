@@ -33,9 +33,10 @@ jobs:
         mkdir $PROJECT_NAME
         cd $PROJECT_NAME
         dotnet new classlib --name $PROJECT_NAME --output .
-        echo "namespace $PROJECT_NAME { public class MathClass { public int Sum(int a, int b) { return a + b; } } }" > MathClass.cs
+        echo "namespace ${PROJECT_NAME} { public class MathClass { public int Sum(int a, int b) { return a + b; } } }" > MathClass.cs
         rm Class1.cs
         ls -la
+
 
     - name: Add Newtonsoft.Json package
       run: |
