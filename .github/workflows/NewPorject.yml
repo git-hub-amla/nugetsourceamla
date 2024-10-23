@@ -38,6 +38,12 @@ jobs:
         dotnet new classlib --name $PROJECT_NAME --output .
         ls -la
 
+    - name: Remove Class1.cs file
+      run: |
+        PROJECT_NAME="znode.${{ github.event.inputs.project }}.client.${{ github.event.inputs.version }}"
+        rm $PROJECT_NAME/Class1.cs
+        echo "Removed Class1.cs"
+
     - name: Add Newtonsoft.Json package
       run: |
         PROJECT_NAME="znode.${{ github.event.inputs.project }}.client.${{ github.event.inputs.version }}"
